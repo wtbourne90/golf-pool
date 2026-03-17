@@ -98,7 +98,7 @@ const SCORING_CATEGORIES = [
   { key: "best4", label: "Best 4 Score", weight: 0.30, description: "Lowest combined score of best 4 golfers (all 4 rounds)", prizes: [0.6, 0.3, 0.1] },
   { key: "best8thru2", label: "Best 8 Thru 2", weight: 0.20, description: "Lowest combined score of best 8 golfers through rounds 1 & 2", prizes: [0.6, 0.3, 0.1] },
   { key: "cutsMade", label: "Most Cuts Made", weight: 0.20, description: "Most golfers making the cut", prizes: [0.6, 0.3, 0.1] },
-  { key: "matchPlay", label: "Match Play", weight: 0.10, description: "Head-to-head round wins vs each pool player", prizes: [0.6, 0.3, 0.1] },
+  { key: "matchPlay", label: "Match Play", weight: 0.10, description: "Each draft slot is a match — lowest total score wins 1 pt (ties split ½). Most points wins; ties split pot.", prizes: [1.0] },
 ];
 
 const PLAYER_COLORS = ["#1a6b3c","#8b5e0a","#1e3a6e","#5a1a5a","#7a1a1a","#1a4a5a","#3a5a1a","#4a3a1a","#5a3a5a","#1a5a3a"];
@@ -250,22 +250,28 @@ function computeAll() {
     const b8s = b8.length > 0 ? b8.reduce((s, x) => s + x.s, 0) : 999;
     const cuts = gd.filter(g => g.cutMade && g.total !== null).length;
     const champ = lb.length > 0 && gd.some(g => g.name === lb[0]?.name);
-    return { name: player.name, color: getPlayerColor(idx), golferData: gd, best4Score: b4s, best8Thru2Score: b8s, cutsMade: cuts, champion: champ, matchPlayWins: 0, matchPlayRecord: [] };
+    return { name: player.name, color: getPlayerColor(idx), golferData: gd, best4Score: b4s, best8Thru2Score: b8s, cutsMade: cuts, champion: champ, matchPlayPts: 0, matchPlayRecord: [] };
   });
 
-  // Match play
-  for (let i = 0; i < standings.length; i++) {
-    for (let j = i + 1; j < standings.length; j++) {
-      const a = standings[i], b = standings[j];
-      let aW = 0, bW = 0;
-      for (let r = 0; r < 4; r++) {
-        const aS = a.golferData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
-        const bS = b.golferData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
-        if (aS < bS) aW++; else if (bS < aS) bW++;
-      }
-      if (aW > bW) { a.matchPlayWins++; a.matchPlayRecord.push("W vs " + b.name); b.matchPlayRecord.push("L vs " + a.name); }
-      else if (bW > aW) { b.matchPlayWins++; b.matchPlayRecord.push("W vs " + a.name); a.matchPlayRecord.push("L vs " + b.name); }
-      else { a.matchPlayRecord.push("T vs " + b.name); b.matchPlayRecord.push("T vs " + a.name); }
+  // Match play — by draft slot
+  const numPicks = Math.max(...standings.map(p => p.golferData.length));
+  standings.forEach(p => { p.matchPlayPts = 0; p.matchPlayRecord = []; });
+  for (let slot = 0; slot < numPicks; slot++) {
+    // Get each player's golfer score at this draft slot (missed cut = 999)
+    const entries = standings.map(p => {
+      const g = p.golferData[slot];
+      const score = (g && g.cutMade && g.total !== null) ? g.total : 999;
+      return { playerName: p.name, golferName: g ? g.name : "—", score };
+    });
+    const bestScore = Math.min(...entries.map(e => e.score));
+    if (bestScore < 999) {
+      const winners = entries.filter(e => e.score === bestScore);
+      const pts = 1 / winners.length;
+      winners.forEach(w => {
+        const p = standings.find(s => s.name === w.playerName);
+        p.matchPlayPts += pts;
+        p.matchPlayRecord.push("Pick " + (slot + 1) + ": " + w.golferName + " (" + (pts === 1 ? "1 pt" : "½ pt") + ")");
+      });
     }
   }
 
@@ -277,10 +283,10 @@ function computeAll() {
   rankBy(standings, "best4Score", true);
   rankBy(standings, "best8Thru2Score", true);
   rankBy(standings, "cutsMade", false);
-  rankBy(standings, "matchPlayWins", false);
+  rankBy(standings, "matchPlayPts", false);
 
   standings.forEach(p => {
-    p.compositeScore = (p.champion ? 0 : standings.length) * 0.20 + p.best4ScoreRank * 0.30 + p.best8Thru2ScoreRank * 0.20 + p.cutsMadeRank * 0.20 + p.matchPlayWinsRank * 0.10;
+    p.compositeScore = (p.champion ? 0 : standings.length) * 0.20 + p.best4ScoreRank * 0.30 + p.best8Thru2ScoreRank * 0.20 + p.cutsMadeRank * 0.20 + p.matchPlayPtsRank * 0.10;
   });
   standings.sort((a, b) => a.compositeScore - b.compositeScore);
   standings.forEach((p, i) => { p.overallRank = i + 1; });
@@ -342,22 +348,27 @@ function runMonteCarlo() {
     const cs = [...simStandings].sort((a, b) => b.cuts - a.cuts);
     if (cs.length) wins[cs[0].name].cutsMade++;
 
-    const mpW = {};
-    simStandings.forEach(p => { mpW[p.name] = 0; });
-    for (let i = 0; i < simStandings.length; i++) {
-      for (let j = i + 1; j < simStandings.length; j++) {
-        const a = simStandings[i], b = simStandings[j];
-        let aW = 0, bW = 0;
-        for (let r = 0; r < 4; r++) {
-          const aS = a.gData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
-          const bS = b.gData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
-          if (aS < bS) aW++; else if (bS < aS) bW++;
-        }
-        if (aW > bW) mpW[a.name]++; else if (bW > aW) mpW[b.name]++;
+    const mpPts = {};
+    simStandings.forEach(p => { mpPts[p.name] = 0; });
+    const numSimPicks = Math.max(...simStandings.map(p => p.gData.length));
+    for (let slot = 0; slot < numSimPicks; slot++) {
+      const entries = simStandings.map(p => {
+        const g = p.gData[slot];
+        const score = (g && g.cutMade && g.simTotal !== 999) ? g.simTotal : 999;
+        return { name: p.name, score };
+      });
+      const best = Math.min(...entries.map(e => e.score));
+      if (best < 999) {
+        const winners = entries.filter(e => e.score === best);
+        const pts = 1 / winners.length;
+        winners.forEach(w => { mpPts[w.name] += pts; });
       }
     }
-    const mps = Object.entries(mpW).sort((a, b) => b[1] - a[1]);
-    if (mps.length) wins[mps[0][0]].matchPlay++;
+    const maxMpPts = Math.max(...Object.values(mpPts));
+    if (maxMpPts > 0) {
+      const mpWinners = Object.entries(mpPts).filter(([, v]) => v === maxMpPts);
+      mpWinners.forEach(([name]) => { wins[name].matchPlay += 1 / mpWinners.length; });
+    }
   }
 
   const probs = {};
@@ -498,7 +509,7 @@ function renderStandings() {
       { label: "B4: " + formatScore(p.best4Score), active: p.best4ScoreRank === 1 },
       { label: "8×2: " + formatScore(p.best8Thru2Score), active: p.best8Thru2ScoreRank === 1 },
       { label: "CUTS: " + p.cutsMade, active: p.cutsMadeRank === 1 },
-      { label: "MP: " + p.matchPlayWins, active: p.matchPlayWinsRank === 1 },
+      { label: "MP: " + p.matchPlayPts + (p.matchPlayPts % 1 ? "" : "") + "pts", active: p.matchPlayPtsRank === 1 },
     ];
 
     html += '<div class="player-row" onclick="toggleRow(\'' + p.name + '\')">';

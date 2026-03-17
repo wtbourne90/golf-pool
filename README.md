@@ -31,11 +31,11 @@ git init
 git add .
 git commit -m "Initial commit"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/golf-pool.git
+git remote add origin https://github.com/wtbourne90/golf-pool.git
 git push -u origin main
 ```
 
-Replace `YOUR_USERNAME` with your GitHub username.
+Replace `wtbourne90` with your GitHub username.
 
 ### 3. Enable GitHub Pages
 
@@ -46,7 +46,7 @@ Replace `YOUR_USERNAME` with your GitHub username.
 5. Wait ~60 seconds, then your site is live at:
 
 ```
-https://YOUR_USERNAME.github.io/golf-pool/
+https://wtbourne90.github.io/golf-pool/
 ```
 
 That's it. Share that URL with the group.
@@ -117,7 +117,7 @@ Live in ~60 seconds. No build step, no dependencies to install.
 | Best 4 Score | 30% | Lowest combined 4-round total from your best 4 golfers |
 | Best 8 Thru 2 | 20% | Lowest combined R1+R2 score from your best 8 golfers |
 | Most Cuts Made | 20% | Most golfers making the weekend |
-| Match Play Wins | 10% | Head-to-head round wins vs. each other pool player |
+| Match Play Wins | 10% | Each draft slot is a match — all Pick #1 golfers compete, all Pick #2s, etc. Lowest total score wins 1 pt (ties split ½). Most points wins; ties split pot. |
 
 All categories are **winner-take-all** — no prize splitting.
 
