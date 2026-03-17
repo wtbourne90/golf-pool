@@ -48,6 +48,29 @@
   .or-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
   .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
+  /* Autocomplete */
+  .ac-wrap { position: relative; }
+  .ac-list { position: absolute; top: 100%; left: 0; right: 0; background: #0d1f12; border: 1px solid var(--gold); border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+  .ac-item { padding: 7px 10px; font-size: 12px; color: #ddd; cursor: pointer; font-family: var(--font); border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .ac-item:hover, .ac-item.highlighted { background: rgba(184,150,62,0.15); color: #fff; }
+  .ac-item .ac-rank { color: var(--dim); font-size: 10px; margin-right: 6px; }
+  .ac-none { padding: 8px 10px; font-size: 11px; color: var(--dim); font-style: italic; }
+
+  /* Saved tournaments */
+  .saved-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .saved-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.15s; }
+  .saved-item:hover { border-color: var(--gold); background: rgba(184,150,62,0.06); }
+  .saved-item .saved-name { font-size: 13px; color: #fff; font-weight: 700; }
+  .saved-item .saved-meta { font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .saved-item .saved-actions { display: flex; gap: 6px; }
+  .saved-del { background: none; border: 1px solid rgba(224,92,92,0.3); color: var(--red); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-family: var(--font); }
+  .saved-del:hover { background: rgba(224,92,92,0.1); }
+
+  /* Field loader */
+  .field-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field-status { font-size: 11px; color: var(--green); margin-top: 6px; }
+  .field-status.err { color: var(--red); }
+
   /* App Header */
   .header { background: linear-gradient(180deg, #0a1f0e, #123018); border-bottom: 2px solid var(--gold); padding: 22px 16px 16px; text-align: center; }
   .header h1 { font-size: 24px; color: #fff; letter-spacing: 1px; }
@@ -93,6 +116,8 @@
 // ─── STATE ───────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "golf_pool_state";
+const SAVED_TOURNAMENTS_KEY = "golf_pool_tournaments";
+
 const SCORING_CATEGORIES = [
   { key: "champion", label: "Champion", weight: 0.20, description: "Pool player whose golfer wins the tournament", prizes: [1.0] },
   { key: "best4", label: "Best 4 Score", weight: 0.30, description: "Lowest combined score of best 4 golfers (all 4 rounds)", prizes: [0.6, 0.3, 0.1] },
@@ -116,6 +141,9 @@ let state = {
   lastUpdated: null,
   expandedRows: {},
   simming: false,
+  field: [],         // current tournament field from ESPN
+  fieldLoaded: false,
+  activeAC: null,    // tracks which pick input has autocomplete open: "pi-gi"
 };
 
 function loadState() {
@@ -407,6 +435,30 @@ function renderSetup(app) {
   html += '<h1>⛳ Golf Fantasy Pool</h1>';
   html += '<div class="sub">Configure Your Tournament</div>';
 
+  // --- Saved Tournaments ---
+  const saved = getSavedTournaments();
+  const savedKeys = Object.keys(saved);
+  if (savedKeys.length > 0) {
+    html += '<div class="setup-section"><h2>Saved Tournaments</h2>';
+    html += '<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Load a previous tournament config or start fresh below</div>';
+    html += '<div class="saved-list">';
+    savedKeys.sort((a, b) => (saved[b].savedAt || "").localeCompare(saved[a].savedAt || "")).forEach(key => {
+      const t = saved[key];
+      const numPlayers = (t.players || []).length;
+      const date = t.savedAt ? new Date(t.savedAt).toLocaleDateString() : "";
+      html += '<div class="saved-item">';
+      html += '<div onclick="loadTournamentConfig(\'' + key.replace(/'/g, "\\'") + '\')">';
+      html += '<div class="saved-name">' + (t.tournamentName || key) + '</div>';
+      html += '<div class="saved-meta">' + numPlayers + ' players · $' + (t.potAmount || 0) + ' pot' + (date ? ' · Saved ' + date : '') + '</div>';
+      html += '</div>';
+      html += '<div class="saved-actions">';
+      html += '<button class="btn-small" onclick="event.stopPropagation();loadTournamentConfig(\'' + key.replace(/'/g, "\\'") + '\')">Load</button>';
+      html += '<button class="saved-del" onclick="event.stopPropagation();if(confirm(\'Delete ' + key.replace(/'/g, "\\'") + '?\'))deleteTournamentConfig(\'' + key.replace(/'/g, "\\'") + '\')">✕</button>';
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+  }
+
   // Tournament name
   html += '<div class="setup-section"><h2>Tournament</h2>';
   html += '<input class="setup-input" id="tourney-name" placeholder="e.g. The Masters 2026" value="' + (state.tournamentName || "") + '">';
@@ -415,6 +467,18 @@ function renderSetup(app) {
   // Pot
   html += '<div class="setup-section"><h2>Pot Amount</h2>';
   html += '<input class="setup-input" type="number" id="pot-amount" placeholder="480" value="' + state.potAmount + '">';
+  html += '</div>';
+
+  // --- Load Field ---
+  html += '<div class="setup-section"><h2>Tournament Field</h2>';
+  html += '<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Load the current PGA Tour field from ESPN for autocomplete when entering picks</div>';
+  html += '<div class="field-bar">';
+  html += '<button class="btn-small" onclick="fetchField()">⬇ Load Current Field</button>';
+  if (state.fieldLoaded) {
+    html += '<span style="font-size:11px;color:var(--green)">✓ ' + state.field.length + ' golfers loaded</span>';
+  }
+  html += '</div>';
+  html += '<div id="field-status"></div>';
   html += '</div>';
 
   // Upload
@@ -431,6 +495,9 @@ function renderSetup(app) {
 
   // Players
   html += '<div class="setup-section"><h2>Players & Picks</h2>';
+  if (state.fieldLoaded) {
+    html += '<div style="font-size:11px;color:var(--gold);margin-bottom:10px">💡 Start typing to autocomplete from the loaded field</div>';
+  }
   state.players.forEach((p, pi) => {
     html += '<div class="player-setup">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
@@ -439,7 +506,13 @@ function renderSetup(app) {
     html += '</div>';
     html += '<div class="picks-grid">';
     p.picks.forEach((g, gi) => {
-      html += '<input class="pick-input" placeholder="Golfer ' + (gi + 1) + '" value="' + g + '" onchange="updatePick(' + pi + ',' + gi + ', this.value)">';
+      html += '<div class="ac-wrap">';
+      html += '<input class="pick-input" id="pick-' + pi + '-' + gi + '" placeholder="Golfer ' + (gi + 1) + '" value="' + (g || "") + '"';
+      html += ' oninput="onPickInput(' + pi + ',' + gi + ', this.value)"';
+      html += ' onfocus="onPickFocus(' + pi + ',' + gi + ')"';
+      html += ' onblur="onPickBlur(' + pi + ',' + gi + ')"';
+      html += ' autocomplete="off">';
+      html += '</div>';
     });
     html += '</div></div>';
   });
@@ -647,6 +720,178 @@ function renderRules() {
 
 // ─── EVENT HANDLERS ──────────────────────────────────────────────────────────
 
+// --- Field Loader ---
+async function fetchField() {
+  const statusEl = document.getElementById("field-status");
+  if (statusEl) statusEl.innerHTML = '<span class="loading-spinner"></span> Loading field...';
+  try {
+    const res = await fetch("https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard");
+    const data = await res.json();
+    const event = data?.events?.[0];
+    if (!event) throw new Error("No active tournament found");
+
+    const comp = event.competitions?.[0];
+    if (!comp) throw new Error("No competition data");
+
+    const golfers = (comp.competitors || []).map((c, i) => {
+      const name = c.athlete?.displayName || "Unknown";
+      const rank = c.status?.position?.displayName || c.sortOrder || (i + 1);
+      return { name, rank };
+    });
+
+    state.field = golfers;
+    state.fieldLoaded = true;
+    // Auto-fill tournament name from ESPN
+    const tn = event.name || "";
+    if (tn) {
+      state.tournamentName = tn;
+      const nameInput = document.getElementById("tourney-name");
+      if (nameInput) nameInput.value = tn;
+    }
+
+    if (statusEl) {
+      statusEl.className = "field-status";
+      statusEl.textContent = "✓ Loaded " + golfers.length + " golfers for " + (tn || "current tournament");
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.className = "field-status err";
+      statusEl.textContent = "✕ " + err.message + " — try again closer to tournament start";
+    }
+  }
+}
+
+// --- Saved Tournaments ---
+function getSavedTournaments() {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_TOURNAMENTS_KEY) || "{}");
+  } catch (e) { return {}; }
+}
+
+function saveTournamentConfig(name, config) {
+  const all = getSavedTournaments();
+  all[name] = { ...config, savedAt: new Date().toISOString() };
+  localStorage.setItem(SAVED_TOURNAMENTS_KEY, JSON.stringify(all));
+}
+
+function loadTournamentConfig(name) {
+  const all = getSavedTournaments();
+  const config = all[name];
+  if (!config) return;
+  state.tournamentName = config.tournamentName || name;
+  state.potAmount = config.potAmount || 480;
+  state.players = config.players || [];
+  render();
+}
+
+function deleteTournamentConfig(name) {
+  const all = getSavedTournaments();
+  delete all[name];
+  localStorage.setItem(SAVED_TOURNAMENTS_KEY, JSON.stringify(all));
+  render();
+}
+
+// --- Autocomplete ---
+function getACMatches(query) {
+  if (!state.field.length || !query || query.length < 1) return [];
+  const q = query.toLowerCase().trim();
+  // Already-picked golfers across all players
+  const taken = new Set();
+  state.players.forEach(p => p.picks.forEach(pk => { if (pk) taken.add(pk.toLowerCase()); }));
+
+  return state.field
+    .filter(g => {
+      const n = g.name.toLowerCase();
+      // Match start of first or last name, or anywhere in full name
+      return n.includes(q) || n.split(" ").some(w => w.startsWith(q));
+    })
+    .map(g => ({ ...g, taken: taken.has(g.name.toLowerCase()) }))
+    .slice(0, 12);
+}
+
+function showAC(pi, gi) {
+  state.activeAC = pi + "-" + gi;
+  renderACDropdown(pi, gi);
+}
+
+function hideAC() {
+  state.activeAC = null;
+  const existing = document.querySelectorAll(".ac-list");
+  existing.forEach(el => el.remove());
+}
+
+function renderACDropdown(pi, gi) {
+  // Remove any existing
+  document.querySelectorAll(".ac-list").forEach(el => el.remove());
+
+  const input = document.getElementById("pick-" + pi + "-" + gi);
+  if (!input) return;
+
+  const query = input.value;
+  const matches = getACMatches(query);
+  if (matches.length === 0 && query.length > 0) {
+    const list = document.createElement("div");
+    list.className = "ac-list";
+    list.innerHTML = '<div class="ac-none">No matches in field</div>';
+    input.parentNode.appendChild(list);
+    return;
+  }
+  if (matches.length === 0) return;
+
+  const list = document.createElement("div");
+  list.className = "ac-list";
+  matches.forEach(m => {
+    const item = document.createElement("div");
+    item.className = "ac-item";
+    item.style.opacity = m.taken ? "0.4" : "1";
+    item.innerHTML = '<span class="ac-rank">' + m.rank + '</span>' + m.name + (m.taken ? ' <span style="color:var(--dim);font-size:9px">(picked)</span>' : '');
+    item.onmousedown = function(e) {
+      e.preventDefault();
+      state.players[pi].picks[gi] = m.name;
+      hideAC();
+      render();
+      // Re-focus next empty pick
+      setTimeout(() => {
+        for (let next = gi + 1; next < state.players[pi].picks.length; next++) {
+          if (!state.players[pi].picks[next]) {
+            const nextInput = document.getElementById("pick-" + pi + "-" + next);
+            if (nextInput) nextInput.focus();
+            break;
+          }
+        }
+      }, 50);
+    };
+    list.appendChild(item);
+  });
+  input.parentNode.appendChild(list);
+}
+
+function onPickInput(pi, gi, value) {
+  state.players[pi].picks[gi] = value;
+  if (state.fieldLoaded && value.length >= 1) {
+    state.activeAC = pi + "-" + gi;
+    renderACDropdown(pi, gi);
+  } else {
+    hideAC();
+  }
+}
+
+function onPickFocus(pi, gi) {
+  if (state.fieldLoaded) {
+    showAC(pi, gi);
+  }
+}
+
+function onPickBlur(pi, gi) {
+  // Delay to allow click on dropdown
+  setTimeout(hideAC, 150);
+}
+
+// Close autocomplete on click outside
+document.addEventListener("click", function(e) {
+  if (!e.target.closest(".ac-wrap")) hideAC();
+});
+
 function handleFileUpload(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -819,6 +1064,12 @@ function startPool() {
   state.potAmount = Number(document.getElementById("pot-amount").value) || 480;
   state.screen = "app";
   saveState();
+  // Auto-save to tournament library
+  saveTournamentConfig(state.tournamentName, {
+    tournamentName: state.tournamentName,
+    potAmount: state.potAmount,
+    players: state.players
+  });
   render();
   refreshScores();
 }
@@ -831,9 +1082,17 @@ function refreshScores() {
 }
 
 function resetPool() {
-  if (confirm("Reset pool? This will clear all data and return to setup.")) {
+  if (confirm("Reset pool? This will return to setup.\nYour current tournament config will be saved to the tournament library.")) {
+    // Save current config before resetting
+    if (state.tournamentName && state.players.length > 0) {
+      saveTournamentConfig(state.tournamentName, {
+        tournamentName: state.tournamentName,
+        potAmount: state.potAmount,
+        players: state.players
+      });
+    }
     localStorage.removeItem(STORAGE_KEY);
-    state = { screen: "setup", tournamentName: "", potAmount: 480, players: [], leaderboard: [], currentRound: 0, standings: [], probs: {}, tab: "standings", lastUpdated: null, expandedRows: {}, simming: false };
+    state = { screen: "setup", tournamentName: "", potAmount: 480, players: [], leaderboard: [], currentRound: 0, standings: [], probs: {}, tab: "standings", lastUpdated: null, expandedRows: {}, simming: false, field: [], fieldLoaded: false, activeAC: null };
     render();
   }
 }
