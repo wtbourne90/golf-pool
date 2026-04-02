@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Golf Fantasy Pool</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -36,46 +35,6 @@
   .add-player-btn { background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px; text-align: center; color: var(--dim); cursor: pointer; font-family: var(--font); font-size: 12px; }
   .add-player-btn:hover { border-color: var(--gold); color: var(--gold); }
   .remove-btn { background: none; border: none; color: #e05c5c; cursor: pointer; font-size: 14px; float: right; }
-
-  /* Upload */
-  .upload-zone { background: rgba(184,150,62,0.04); border: 2px dashed rgba(184,150,62,0.25); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; }
-  .upload-zone:hover { border-color: var(--gold); background: rgba(184,150,62,0.08); }
-  .upload-zone.dragover { border-color: var(--gold); background: rgba(184,150,62,0.12); }
-  .upload-icon { font-size: 32px; margin-bottom: 8px; }
-  .upload-label { color: var(--gold); font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-  .upload-hint { color: var(--dim); font-size: 11px; }
-  .upload-success { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); border-radius: 6px; padding: 12px; margin-top: 10px; color: var(--green); font-size: 12px; }
-  .or-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
-  .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-  /* Autocomplete */
-  .ac-wrap { position: relative; }
-  .ac-list { position: absolute; top: 100%; left: 0; right: 0; background: #0d1f12; border: 1px solid var(--gold); border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
-  .ac-item { padding: 7px 10px; font-size: 12px; color: #ddd; cursor: pointer; font-family: var(--font); border-bottom: 1px solid rgba(255,255,255,0.04); }
-  .ac-item:hover, .ac-item.highlighted { background: rgba(184,150,62,0.15); color: #fff; }
-  .ac-item .ac-rank { color: var(--dim); font-size: 10px; margin-right: 6px; }
-  .ac-none { padding: 8px 10px; font-size: 11px; color: var(--dim); font-style: italic; }
-
-  /* Saved tournaments */
-  .saved-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-  .saved-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.15s; }
-  .saved-item:hover { border-color: var(--gold); background: rgba(184,150,62,0.06); }
-  .saved-item .saved-name { font-size: 13px; color: #fff; font-weight: 700; }
-  .saved-item .saved-meta { font-size: 10px; color: var(--dim); margin-top: 2px; }
-  .saved-item .saved-actions { display: flex; gap: 6px; }
-  .saved-del { background: none; border: 1px solid rgba(224,92,92,0.3); color: var(--red); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-family: var(--font); }
-  .saved-del:hover { background: rgba(224,92,92,0.1); }
-
-  /* Field loader */
-  .field-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .field-status { font-size: 11px; color: var(--green); margin-top: 6px; }
-  .field-status.err { color: var(--red); }
-
-  /* Tournament selector */
-  .tourney-select { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 10px 12px; color: #fff; font-size: 14px; font-family: var(--font); appearance: none; -webkit-appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23b8963e' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
-  .tourney-select:focus { outline: none; border-color: var(--gold); }
-  .tourney-select option { background: #0d1f12; color: #fff; }
-  .tourney-date { font-size: 10px; color: var(--dim); margin-top: 4px; }
 
   /* App Header */
   .header { background: linear-gradient(180deg, #0a1f0e, #123018); border-bottom: 2px solid var(--gold); padding: 22px 16px 16px; text-align: center; }
@@ -122,14 +81,12 @@
 // ─── STATE ───────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "golf_pool_state";
-const SAVED_TOURNAMENTS_KEY = "golf_pool_tournaments";
-
 const SCORING_CATEGORIES = [
   { key: "champion", label: "Champion", weight: 0.20, description: "Pool player whose golfer wins the tournament", prizes: [1.0] },
   { key: "best4", label: "Best 4 Score", weight: 0.30, description: "Lowest combined score of best 4 golfers (all 4 rounds)", prizes: [0.6, 0.3, 0.1] },
   { key: "best8thru2", label: "Best 8 Thru 2", weight: 0.20, description: "Lowest combined score of best 8 golfers through rounds 1 & 2", prizes: [0.6, 0.3, 0.1] },
   { key: "cutsMade", label: "Most Cuts Made", weight: 0.20, description: "Most golfers making the cut", prizes: [0.6, 0.3, 0.1] },
-  { key: "matchPlay", label: "Match Play", weight: 0.10, description: "Each draft slot is a match — lowest total score wins 1 pt (ties split ½). Most points wins; ties split pot.", prizes: [1.0] },
+  { key: "matchPlay", label: "Match Play", weight: 0.10, description: "Head-to-head round wins vs each pool player", prizes: [0.6, 0.3, 0.1] },
 ];
 
 const PLAYER_COLORS = ["#1a6b3c","#8b5e0a","#1e3a6e","#5a1a5a","#7a1a1a","#1a4a5a","#3a5a1a","#4a3a1a","#5a3a5a","#1a5a3a"];
@@ -147,12 +104,6 @@ let state = {
   lastUpdated: null,
   expandedRows: {},
   simming: false,
-  field: [],         // current tournament field from ESPN
-  fieldLoaded: false,
-  activeAC: null,    // tracks which pick input has autocomplete open: "pi-gi"
-  schedule: [],      // upcoming PGA tournaments from ESPN
-  scheduleLoaded: false,
-  selectedEventId: null, // ESPN event ID for the selected tournament
 };
 
 function loadState() {
@@ -240,7 +191,7 @@ async function fetchLeaderboard() {
       });
       const completedRounds = rounds.filter(r => r !== null);
       const total = completedRounds.length > 0 ? completedRounds.reduce((a, b) => a + b, 0) : null;
-      const cutMade = status !== "cut" && status !== "wd" && status !== "dq" && status !== "dns";
+      const cutMade = status !== "cut";
       const thru = c.status?.thru !== undefined ? (c.status.thru === 0 ? "—" : c.status.thru === 18 ? "F" : c.status.thru) : "—";
 
       return { name, rounds, total, cutMade, position, thru, status };
@@ -279,7 +230,7 @@ function computeAll() {
       const found = lb.find(g => nameMatch(n, g.name));
       return found || { name: n, rounds: [null, null, null, null], total: null, cutMade: false, thru: "—" };
     });
-    const valid = gd.filter(g => g.cutMade && g.total !== null).sort((a, b) => a.total - b.total);
+    const valid = gd.filter(g => g.total !== null).sort((a, b) => a.total - b.total);
     const b4 = valid.slice(0, 4);
     const b4s = b4.length > 0 ? b4.reduce((s, g) => s + g.total, 0) : 999;
     const t2 = gd.map(g => ({ name: g.name, s: (g.rounds[0] ?? 999) + (g.rounds[1] ?? 999) })).filter(x => x.s < 500).sort((a, b) => a.s - b.s);
@@ -287,28 +238,22 @@ function computeAll() {
     const b8s = b8.length > 0 ? b8.reduce((s, x) => s + x.s, 0) : 999;
     const cuts = gd.filter(g => g.cutMade && g.total !== null).length;
     const champ = lb.length > 0 && gd.some(g => g.name === lb[0]?.name);
-    return { name: player.name, color: getPlayerColor(idx), golferData: gd, best4Score: b4s, best8Thru2Score: b8s, cutsMade: cuts, champion: champ, matchPlayPts: 0, matchPlayRecord: [] };
+    return { name: player.name, color: getPlayerColor(idx), golferData: gd, best4Score: b4s, best8Thru2Score: b8s, cutsMade: cuts, champion: champ, matchPlayWins: 0, matchPlayRecord: [] };
   });
 
-  // Match play — by draft slot
-  const numPicks = Math.max(...standings.map(p => p.golferData.length));
-  standings.forEach(p => { p.matchPlayPts = 0; p.matchPlayRecord = []; });
-  for (let slot = 0; slot < numPicks; slot++) {
-    // Get each player's golfer score at this draft slot (missed cut = 999)
-    const entries = standings.map(p => {
-      const g = p.golferData[slot];
-      const score = (g && g.cutMade && g.total !== null) ? g.total : 999;
-      return { playerName: p.name, golferName: g ? g.name : "—", score };
-    });
-    const bestScore = Math.min(...entries.map(e => e.score));
-    if (bestScore < 999) {
-      const winners = entries.filter(e => e.score === bestScore);
-      const pts = 1 / winners.length;
-      winners.forEach(w => {
-        const p = standings.find(s => s.name === w.playerName);
-        p.matchPlayPts += pts;
-        p.matchPlayRecord.push("Pick " + (slot + 1) + ": " + w.golferName + " (" + (pts === 1 ? "1 pt" : "½ pt") + ")");
-      });
+  // Match play
+  for (let i = 0; i < standings.length; i++) {
+    for (let j = i + 1; j < standings.length; j++) {
+      const a = standings[i], b = standings[j];
+      let aW = 0, bW = 0;
+      for (let r = 0; r < 4; r++) {
+        const aS = a.golferData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+        const bS = b.golferData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+        if (aS < bS) aW++; else if (bS < aS) bW++;
+      }
+      if (aW > bW) { a.matchPlayWins++; a.matchPlayRecord.push("W vs " + b.name); b.matchPlayRecord.push("L vs " + a.name); }
+      else if (bW > aW) { b.matchPlayWins++; b.matchPlayRecord.push("W vs " + a.name); a.matchPlayRecord.push("L vs " + b.name); }
+      else { a.matchPlayRecord.push("T vs " + b.name); b.matchPlayRecord.push("T vs " + a.name); }
     }
   }
 
@@ -320,10 +265,10 @@ function computeAll() {
   rankBy(standings, "best4Score", true);
   rankBy(standings, "best8Thru2Score", true);
   rankBy(standings, "cutsMade", false);
-  rankBy(standings, "matchPlayPts", false);
+  rankBy(standings, "matchPlayWins", false);
 
   standings.forEach(p => {
-    p.compositeScore = (p.champion ? 0 : standings.length) * 0.20 + p.best4ScoreRank * 0.30 + p.best8Thru2ScoreRank * 0.20 + p.cutsMadeRank * 0.20 + p.matchPlayPtsRank * 0.10;
+    p.compositeScore = (p.champion ? 0 : standings.length) * 0.20 + p.best4ScoreRank * 0.30 + p.best8Thru2ScoreRank * 0.20 + p.cutsMadeRank * 0.20 + p.matchPlayWinsRank * 0.10;
   });
   standings.sort((a, b) => a.compositeScore - b.compositeScore);
   standings.forEach((p, i) => { p.overallRank = i + 1; });
@@ -385,27 +330,22 @@ function runMonteCarlo() {
     const cs = [...simStandings].sort((a, b) => b.cuts - a.cuts);
     if (cs.length) wins[cs[0].name].cutsMade++;
 
-    const mpPts = {};
-    simStandings.forEach(p => { mpPts[p.name] = 0; });
-    const numSimPicks = Math.max(...simStandings.map(p => p.gData.length));
-    for (let slot = 0; slot < numSimPicks; slot++) {
-      const entries = simStandings.map(p => {
-        const g = p.gData[slot];
-        const score = (g && g.cutMade && g.simTotal !== 999) ? g.simTotal : 999;
-        return { name: p.name, score };
-      });
-      const best = Math.min(...entries.map(e => e.score));
-      if (best < 999) {
-        const winners = entries.filter(e => e.score === best);
-        const pts = 1 / winners.length;
-        winners.forEach(w => { mpPts[w.name] += pts; });
+    const mpW = {};
+    simStandings.forEach(p => { mpW[p.name] = 0; });
+    for (let i = 0; i < simStandings.length; i++) {
+      for (let j = i + 1; j < simStandings.length; j++) {
+        const a = simStandings[i], b = simStandings[j];
+        let aW = 0, bW = 0;
+        for (let r = 0; r < 4; r++) {
+          const aS = a.gData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+          const bS = b.gData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+          if (aS < bS) aW++; else if (bS < aS) bW++;
+        }
+        if (aW > bW) mpW[a.name]++; else if (bW > aW) mpW[b.name]++;
       }
     }
-    const maxMpPts = Math.max(...Object.values(mpPts));
-    if (maxMpPts > 0) {
-      const mpWinners = Object.entries(mpPts).filter(([, v]) => v === maxMpPts);
-      mpWinners.forEach(([name]) => { wins[name].matchPlay += 1 / mpWinners.length; });
-    }
+    const mps = Object.entries(mpW).sort((a, b) => b[1] - a[1]);
+    if (mps.length) wins[mps[0][0]].matchPlay++;
   }
 
   const probs = {};
@@ -444,60 +384,9 @@ function renderSetup(app) {
   html += '<h1>⛳ Golf Fantasy Pool</h1>';
   html += '<div class="sub">Configure Your Tournament</div>';
 
-  // --- Saved Tournaments ---
-  const saved = getSavedTournaments();
-  const savedKeys = Object.keys(saved);
-  if (savedKeys.length > 0) {
-    html += '<div class="setup-section"><h2>Saved Tournaments</h2>';
-    html += '<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Load a previous tournament config or start fresh below</div>';
-    html += '<div class="saved-list">';
-    savedKeys.sort((a, b) => (saved[b].savedAt || "").localeCompare(saved[a].savedAt || "")).forEach(key => {
-      const t = saved[key];
-      const numPlayers = (t.players || []).length;
-      const date = t.savedAt ? new Date(t.savedAt).toLocaleDateString() : "";
-      html += '<div class="saved-item">';
-      html += '<div onclick="loadTournamentConfig(\'' + key.replace(/'/g, "\\'") + '\')">';
-      html += '<div class="saved-name">' + (t.tournamentName || key) + '</div>';
-      html += '<div class="saved-meta">' + numPlayers + ' players · $' + (t.potAmount || 0) + ' pot' + (date ? ' · Saved ' + date : '') + '</div>';
-      html += '</div>';
-      html += '<div class="saved-actions">';
-      html += '<button class="btn-small" onclick="event.stopPropagation();loadTournamentConfig(\'' + key.replace(/'/g, "\\'") + '\')">Load</button>';
-      html += '<button class="saved-del" onclick="event.stopPropagation();if(confirm(\'Delete ' + key.replace(/'/g, "\\'") + '?\'))deleteTournamentConfig(\'' + key.replace(/'/g, "\\'") + '\')">✕</button>';
-      html += '</div></div>';
-    });
-    html += '</div></div>';
-  }
-
-  // Tournament selector
+  // Tournament name
   html += '<div class="setup-section"><h2>Tournament</h2>';
-  if (state.scheduleLoaded && state.schedule.length > 0) {
-    html += '<select class="tourney-select" id="tourney-select" onchange="selectTournament(this.value)">';
-    state.schedule.forEach(e => {
-      const val = e.id || e.name;
-      const selected = (state.selectedEventId === val || state.tournamentName === e.name) ? " selected" : "";
-      const dateStr = e.date ? new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-      const label = e.name + (dateStr ? " (" + dateStr + ")" : "") + (e.status && e.status !== "Upcoming" ? " — " + e.status : "");
-      html += '<option value="' + val + '"' + selected + '>' + label + '</option>';
-    });
-    html += '<option value="__custom__"' + (state.selectedEventId === "__custom__" ? " selected" : "") + '>Other (enter manually)</option>';
-    html += '</select>';
-    if (state.selectedEventId === "__custom__") {
-      html += '<input class="setup-input" id="tourney-name" placeholder="Enter tournament name" value="' + (state.tournamentName || "") + '" style="margin-top:8px">';
-    } else {
-      html += '<input type="hidden" id="tourney-name" value="' + (state.tournamentName || "") + '">';
-    }
-    const selectedEvent = state.schedule.find(e => (e.id || e.name) === state.selectedEventId);
-    if (selectedEvent) {
-      const hasEspnId = !!selectedEvent.id;
-      html += '<div class="tourney-date">' + (selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "") + (hasEspnId ? ' · <span style="color:var(--green)">Live on ESPN</span>' : ' · Field available closer to start') + '</div>';
-    }
-  } else {
-    html += '<div class="field-bar" style="margin-bottom:10px">';
-    html += '<button class="btn-small" onclick="fetchSchedule()">⬇ Load PGA Tour Schedule</button>';
-    html += '<span style="font-size:11px;color:var(--dim)">or type a name below</span>';
-    html += '</div>';
-    html += '<input class="setup-input" id="tourney-name" placeholder="e.g. Valspar Championship 2026" value="' + (state.tournamentName || "") + '">';
-  }
+  html += '<input class="setup-input" id="tourney-name" placeholder="e.g. The Masters 2026" value="' + (state.tournamentName || "") + '">';
   html += '</div>';
 
   // Pot
@@ -505,35 +394,8 @@ function renderSetup(app) {
   html += '<input class="setup-input" type="number" id="pot-amount" placeholder="480" value="' + state.potAmount + '">';
   html += '</div>';
 
-  // --- Load Field ---
-  html += '<div class="setup-section"><h2>Tournament Field</h2>';
-  html += '<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Load the current PGA Tour field from ESPN for autocomplete when entering picks</div>';
-  html += '<div class="field-bar">';
-  html += '<button class="btn-small" onclick="fetchField()">⬇ Load Current Field</button>';
-  if (state.fieldLoaded) {
-    html += '<span style="font-size:11px;color:var(--green)">✓ ' + state.field.length + ' golfers loaded</span>';
-  }
-  html += '</div>';
-  html += '<div id="field-status"></div>';
-  html += '</div>';
-
-  // Upload
-  html += '<div class="setup-section"><h2>Import Picks from Spreadsheet</h2>';
-  html += '<div class="upload-zone" id="upload-zone" onclick="document.getElementById(\'file-input\').click()">';
-  html += '<div class="upload-icon">📊</div>';
-  html += '<div class="upload-label">Click to upload or drag & drop</div>';
-  html += '<div class="upload-hint">Supports .xlsx files with snake-draft pick format</div>';
-  html += '</div>';
-  html += '<input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileUpload(this.files[0])">';
-  html += '<div id="upload-status"></div>';
-  html += '<div class="or-divider">or enter picks manually below</div>';
-  html += '</div>';
-
   // Players
   html += '<div class="setup-section"><h2>Players & Picks</h2>';
-  if (state.fieldLoaded) {
-    html += '<div style="font-size:11px;color:var(--gold);margin-bottom:10px">💡 Start typing to autocomplete from the loaded field</div>';
-  }
   state.players.forEach((p, pi) => {
     html += '<div class="player-setup">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
@@ -542,13 +404,7 @@ function renderSetup(app) {
     html += '</div>';
     html += '<div class="picks-grid">';
     p.picks.forEach((g, gi) => {
-      html += '<div class="ac-wrap">';
-      html += '<input class="pick-input" id="pick-' + pi + '-' + gi + '" placeholder="Golfer ' + (gi + 1) + '" value="' + (g || "") + '"';
-      html += ' oninput="onPickInput(' + pi + ',' + gi + ', this.value)"';
-      html += ' onfocus="onPickFocus(' + pi + ',' + gi + ')"';
-      html += ' onblur="onPickBlur(' + pi + ',' + gi + ')"';
-      html += ' autocomplete="off">';
-      html += '</div>';
+      html += '<input class="pick-input" placeholder="Golfer ' + (gi + 1) + '" value="' + g + '" onchange="updatePick(' + pi + ',' + gi + ', this.value)">';
     });
     html += '</div></div>';
   });
@@ -618,7 +474,7 @@ function renderStandings() {
       { label: "B4: " + formatScore(p.best4Score), active: p.best4ScoreRank === 1 },
       { label: "8×2: " + formatScore(p.best8Thru2Score), active: p.best8Thru2ScoreRank === 1 },
       { label: "CUTS: " + p.cutsMade, active: p.cutsMadeRank === 1 },
-      { label: "MP: " + p.matchPlayPts + (p.matchPlayPts % 1 ? "" : "") + "pts", active: p.matchPlayPtsRank === 1 },
+      { label: "MP: " + p.matchPlayWins, active: p.matchPlayWinsRank === 1 },
     ];
 
     html += '<div class="player-row" onclick="toggleRow(\'' + p.name + '\')">';
@@ -642,7 +498,7 @@ function renderStandings() {
         const col = scoreColor(g.total);
         html += '<div class="golfer-card"><div>';
         html += '<div style="font-size:12px;color:#ddd">' + g.name + '</div>';
-        html += '<div style="font-size:10px;color:#555;margin-top:1px">' + (g.cutMade ? "Pos " + g.position + " · " + g.thru : (g.status === "wd" ? "Withdrew" : g.status === "dq" ? "Disqualified" : g.status === "cut" ? "Missed Cut" : "—")) + '</div>';
+        html += '<div style="font-size:10px;color:#555;margin-top:1px">' + (g.cutMade ? "Pos " + g.position + " · " + g.thru : (g.status === "cut" || g.thru === "CUT" ? "Missed Cut" : "—")) + '</div>';
         html += '</div><div style="font-size:18px;font-weight:700;color:' + col + '">' + sc + '</div></div>';
       });
       html += '</div>';
@@ -756,473 +612,16 @@ function renderRules() {
 
 // ─── EVENT HANDLERS ──────────────────────────────────────────────────────────
 
-// --- Tournament Schedule ---
-async function fetchSchedule() {
-  try {
-    // ESPN scoreboard gives current/active event
-    const res = await fetch("https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard");
-    const data = await res.json();
-    const espnEvents = (data?.events || []).map(e => ({
-      id: e.id,
-      name: e.name || "Unknown",
-      date: e.date || "",
-      status: e.status?.type?.description || "",
-      hasField: (e.competitions?.[0]?.competitors?.length || 0) > 0
-    }));
-
-    // Also try the ESPN calendar/season endpoint for broader schedule
-    let calendarEvents = [];
-    try {
-      const calRes = await fetch("https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?dates=2026");
-      const calData = await calRes.json();
-      calendarEvents = (calData?.events || []).map(e => ({
-        id: e.id,
-        name: e.name || "Unknown",
-        date: e.date || "",
-        status: e.status?.type?.description || "",
-        hasField: (e.competitions?.[0]?.competitors?.length || 0) > 0
-      }));
-    } catch (e) {}
-
-    // Merge and deduplicate by id
-    const allEvents = [...espnEvents];
-    calendarEvents.forEach(ce => {
-      if (!allEvents.find(e => e.id === ce.id)) allEvents.push(ce);
-    });
-
-    // Add upcoming 2026 PGA events as fallback options (no ESPN ID — manual entry)
-    const UPCOMING_2026 = [
-      { name: "Valspar Championship", date: "2026-03-19", id: null },
-      { name: "Valero Texas Open", date: "2026-03-26", id: null },
-      { name: "Houston Open", date: "2026-04-02", id: null },
-      { name: "Masters Tournament", date: "2026-04-09", id: null },
-      { name: "RBC Heritage", date: "2026-04-16", id: null },
-      { name: "Zurich Classic of New Orleans", date: "2026-04-23", id: null },
-      { name: "Cadillac Championship", date: "2026-04-30", id: null },
-      { name: "Truist Championship", date: "2026-05-07", id: null },
-      { name: "PGA Championship", date: "2026-05-14", id: null },
-      { name: "Charles Schwab Challenge", date: "2026-05-28", id: null },
-      { name: "the Memorial Tournament", date: "2026-06-04", id: null },
-      { name: "U.S. Open", date: "2026-06-18", id: null },
-      { name: "Travelers Championship", date: "2026-06-25", id: null },
-      { name: "The Open Championship", date: "2026-07-16", id: null },
-    ];
-
-    // Add fallback events that aren't already in ESPN results
-    UPCOMING_2026.forEach(fb => {
-      const already = allEvents.find(e =>
-        e.name.toLowerCase().includes(fb.name.toLowerCase().split(" ")[0]) ||
-        fb.name.toLowerCase().includes(e.name.toLowerCase().split(" ")[0])
-      );
-      if (!already) {
-        allEvents.push({ ...fb, status: "Upcoming", hasField: false });
-      }
-    });
-
-    // Sort by date
-    allEvents.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
-
-    state.schedule = allEvents;
-    state.scheduleLoaded = true;
-
-    // Auto-select the first event if nothing selected
-    if (!state.selectedEventId && allEvents.length > 0) {
-      state.selectedEventId = allEvents[0].id || allEvents[0].name;
-      state.tournamentName = allEvents[0].name;
-    }
-  } catch (err) {
-    console.error("Schedule fetch error:", err);
-    // Fallback to hardcoded schedule
-    state.schedule = [
-      { name: "Valspar Championship", date: "2026-03-19", id: null, status: "Upcoming", hasField: false },
-      { name: "Valero Texas Open", date: "2026-03-26", id: null, status: "Upcoming", hasField: false },
-      { name: "Houston Open", date: "2026-04-02", id: null, status: "Upcoming", hasField: false },
-      { name: "Masters Tournament", date: "2026-04-09", id: null, status: "Upcoming", hasField: false },
-      { name: "PGA Championship", date: "2026-05-14", id: null, status: "Upcoming", hasField: false },
-      { name: "U.S. Open", date: "2026-06-18", id: null, status: "Upcoming", hasField: false },
-      { name: "The Open Championship", date: "2026-07-16", id: null, status: "Upcoming", hasField: false },
-    ];
-    state.scheduleLoaded = true;
-  }
-  render();
-}
-
-function selectTournament(value) {
-  if (value === "__custom__") {
-    state.selectedEventId = "__custom__";
-    state.tournamentName = "";
-    state.field = [];
-    state.fieldLoaded = false;
-    render();
-    return;
-  }
-  const event = state.schedule.find(e => (e.id || e.name) === value);
-  if (event) {
-    state.selectedEventId = event.id || event.name;
-    state.tournamentName = event.name;
-    state.field = [];
-    state.fieldLoaded = false;
-    render();
-  }
-}
-
-// --- Field Loader ---
-async function fetchField() {
-  const statusEl = document.getElementById("field-status");
-  if (statusEl) statusEl.innerHTML = '<span class="loading-spinner"></span> Loading field...';
-  try {
-    const res = await fetch("https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard");
-    const data = await res.json();
-    const events = data?.events || [];
-
-    // Try to match selected tournament, fall back to first event
-    let event = null;
-    if (state.selectedEventId) {
-      event = events.find(e => e.id === state.selectedEventId);
-      if (!event) {
-        // Try name match
-        event = events.find(e => e.name?.toLowerCase().includes(state.tournamentName?.toLowerCase().split(" ")[0] || ""));
-      }
-    }
-    if (!event) event = events[0];
-    if (!event) throw new Error("No active tournament found on ESPN");
-
-    const comp = event.competitions?.[0];
-    if (!comp || !comp.competitors?.length) throw new Error("Field not yet available for " + (event.name || "this tournament") + " — try again closer to the start date");
-
-    const golfers = (comp.competitors || []).map((c, i) => {
-      const name = c.athlete?.displayName || "Unknown";
-      const rank = c.status?.position?.displayName || c.sortOrder || (i + 1);
-      return { name, rank };
-    });
-
-    state.field = golfers;
-    state.fieldLoaded = true;
-    state.tournamentName = event.name || state.tournamentName;
-
-    if (statusEl) {
-      statusEl.className = "field-status";
-      statusEl.textContent = "✓ Loaded " + golfers.length + " golfers for " + state.tournamentName;
-    }
-  } catch (err) {
-    if (statusEl) {
-      statusEl.className = "field-status err";
-      statusEl.textContent = "✕ " + err.message;
-    }
-  }
-}
-
-// --- Saved Tournaments ---
-function getSavedTournaments() {
-  try {
-    return JSON.parse(localStorage.getItem(SAVED_TOURNAMENTS_KEY) || "{}");
-  } catch (e) { return {}; }
-}
-
-function saveTournamentConfig(name, config) {
-  const all = getSavedTournaments();
-  all[name] = { ...config, savedAt: new Date().toISOString() };
-  localStorage.setItem(SAVED_TOURNAMENTS_KEY, JSON.stringify(all));
-}
-
-function loadTournamentConfig(name) {
-  const all = getSavedTournaments();
-  const config = all[name];
-  if (!config) return;
-  state.tournamentName = config.tournamentName || name;
-  state.potAmount = config.potAmount || 480;
-  state.players = config.players || [];
-  render();
-}
-
-function deleteTournamentConfig(name) {
-  const all = getSavedTournaments();
-  delete all[name];
-  localStorage.setItem(SAVED_TOURNAMENTS_KEY, JSON.stringify(all));
-  render();
-}
-
-// --- Autocomplete ---
-function getACMatches(query) {
-  if (!state.field.length || !query || query.length < 1) return [];
-  const q = query.toLowerCase().trim();
-  // Already-picked golfers across all players
-  const taken = new Set();
-  state.players.forEach(p => p.picks.forEach(pk => { if (pk) taken.add(pk.toLowerCase()); }));
-
-  return state.field
-    .filter(g => {
-      const n = g.name.toLowerCase();
-      // Match start of first or last name, or anywhere in full name
-      return n.includes(q) || n.split(" ").some(w => w.startsWith(q));
-    })
-    .map(g => ({ ...g, taken: taken.has(g.name.toLowerCase()) }))
-    .slice(0, 12);
-}
-
-function showAC(pi, gi) {
-  state.activeAC = pi + "-" + gi;
-  renderACDropdown(pi, gi);
-}
-
-function hideAC() {
-  state.activeAC = null;
-  const existing = document.querySelectorAll(".ac-list");
-  existing.forEach(el => el.remove());
-}
-
-function renderACDropdown(pi, gi) {
-  // Remove any existing
-  document.querySelectorAll(".ac-list").forEach(el => el.remove());
-
-  const input = document.getElementById("pick-" + pi + "-" + gi);
-  if (!input) return;
-
-  const query = input.value;
-  const matches = getACMatches(query);
-  if (matches.length === 0 && query.length > 0) {
-    const list = document.createElement("div");
-    list.className = "ac-list";
-    list.innerHTML = '<div class="ac-none">No matches in field</div>';
-    input.parentNode.appendChild(list);
-    return;
-  }
-  if (matches.length === 0) return;
-
-  const list = document.createElement("div");
-  list.className = "ac-list";
-  matches.forEach(m => {
-    const item = document.createElement("div");
-    item.className = "ac-item";
-    item.style.opacity = m.taken ? "0.4" : "1";
-    item.innerHTML = '<span class="ac-rank">' + m.rank + '</span>' + m.name + (m.taken ? ' <span style="color:var(--dim);font-size:9px">(picked)</span>' : '');
-    item.onmousedown = function(e) {
-      e.preventDefault();
-      state.players[pi].picks[gi] = m.name;
-      hideAC();
-      render();
-      // Re-focus next empty pick
-      setTimeout(() => {
-        for (let next = gi + 1; next < state.players[pi].picks.length; next++) {
-          if (!state.players[pi].picks[next]) {
-            const nextInput = document.getElementById("pick-" + pi + "-" + next);
-            if (nextInput) nextInput.focus();
-            break;
-          }
-        }
-      }, 50);
-    };
-    list.appendChild(item);
-  });
-  input.parentNode.appendChild(list);
-}
-
-function onPickInput(pi, gi, value) {
-  state.players[pi].picks[gi] = value;
-  if (state.fieldLoaded && value.length >= 1) {
-    state.activeAC = pi + "-" + gi;
-    renderACDropdown(pi, gi);
-  } else {
-    hideAC();
-  }
-}
-
-function onPickFocus(pi, gi) {
-  if (state.fieldLoaded) {
-    showAC(pi, gi);
-  }
-}
-
-function onPickBlur(pi, gi) {
-  // Delay to allow click on dropdown
-  setTimeout(hideAC, 150);
-}
-
-// Close autocomplete on click outside
-document.addEventListener("click", function(e) {
-  if (!e.target.closest(".ac-wrap")) hideAC();
-});
-
-function handleFileUpload(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
-      parseSpreadsheet(rows);
-    } catch (err) {
-      console.error("Parse error:", err);
-      showUploadStatus("Error reading file: " + err.message, false);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function parseSpreadsheet(rows) {
-  // Strategy: find header row with "Name" and "Player" columns, then extract picks
-  let nameCol = -1, golferCol = -1, headerRow = -1;
-
-  for (let r = 0; r < Math.min(rows.length, 20); r++) {
-    const row = rows[r];
-    if (!row) continue;
-    for (let c = 0; c < row.length; c++) {
-      const val = String(row[c] || "").trim().toLowerCase();
-      if (val === "name") nameCol = c;
-      if (val === "player" || val === "golfer" || val === "pick name") golferCol = c;
-    }
-    if (nameCol >= 0 && golferCol >= 0) { headerRow = r; break; }
-  }
-
-  // Fallback: look for known player names if no header found
-  if (headerRow < 0) {
-    const knownNames = ["judy","tucker","jay","tim","bill","david","graham","chuck"];
-    for (let r = 0; r < Math.min(rows.length, 20); r++) {
-      const row = rows[r];
-      if (!row) continue;
-      for (let c = 0; c < Math.min(row.length, 10); c++) {
-        const val = String(row[c] || "").trim().toLowerCase();
-        if (knownNames.includes(val)) {
-          // Found a player name — scan columns for the pattern
-          nameCol = c;
-          golferCol = c + 2; // Assume golfer is 2 columns over (Name, Pick#, Golfer)
-          headerRow = r - 1;
-          break;
-        }
-      }
-      if (headerRow >= 0) break;
-    }
-  }
-
-  if (nameCol < 0 || golferCol < 0) {
-    showUploadStatus("Could not find player names and golfer picks in this spreadsheet. Expected columns labeled 'Name' and 'Player'.", false);
-    return;
-  }
-
-  // Extract player → golfer mappings
-  const playerPicks = {};
-  const playerOrder = [];
-
-  for (let r = headerRow + 1; r < rows.length; r++) {
-    const row = rows[r];
-    if (!row) continue;
-    const name = String(row[nameCol] || "").trim();
-    const golfer = String(row[golferCol] || "").trim();
-    if (!name || !golfer || golfer === "null" || golfer === "NaN" || golfer === "undefined") continue;
-    // Skip header-like rows
-    if (name.toLowerCase() === "name" || golfer.toLowerCase() === "player") continue;
-
-    if (!playerPicks[name]) {
-      playerPicks[name] = [];
-      playerOrder.push(name);
-    }
-    playerPicks[name].push(golfer);
-  }
-
-  if (playerOrder.length === 0) {
-    showUploadStatus("No player picks found in the spreadsheet.", false);
-    return;
-  }
-
-  // Try to extract entry fee / pot
-  let detectedPot = null;
-  for (let r = 0; r < Math.min(rows.length, 25); r++) {
-    const row = rows[r];
-    if (!row) continue;
-    for (let c = 0; c < row.length; c++) {
-      const val = String(row[c] || "").trim().toLowerCase();
-      if (val === "entry fee" || val === "entry" || val === "fee") {
-        // Check next row or next column for the number
-        const below = rows[r + 1]?.[c];
-        const right = row[c + 1];
-        if (typeof below === "number" && below > 0) {
-          detectedPot = below * playerOrder.length;
-        } else if (typeof right === "number" && right > 0) {
-          detectedPot = right * playerOrder.length;
-        }
-      }
-      if (val === "pot" || val === "total pot") {
-        const below = rows[r + 1]?.[c];
-        const right = row[c + 1];
-        if (typeof below === "number" && below > 0) detectedPot = below;
-        else if (typeof right === "number" && right > 0) detectedPot = right;
-      }
-    }
-  }
-
-  // Populate state
-  const maxPicks = Math.max(...Object.values(playerPicks).map(p => p.length));
-  state.players = playerOrder.map(name => ({
-    name: name,
-    picks: playerPicks[name].concat(Array(Math.max(0, maxPicks - playerPicks[name].length)).fill(""))
-  }));
-
-  if (detectedPot) {
-    state.potAmount = detectedPot;
-  }
-
-  const totalGolfers = Object.values(playerPicks).reduce((s, p) => s + p.length, 0);
-  showUploadStatus(
-    "Loaded " + playerOrder.length + " players with " + totalGolfers + " total picks" +
-    (detectedPot ? " · Pot: $" + detectedPot : "") +
-    " · " + maxPicks + " golfers each",
-    true
-  );
-  render();
-}
-
-function showUploadStatus(msg, success) {
-  const el = document.getElementById("upload-status");
-  if (el) {
-    el.innerHTML = '<div class="' + (success ? "upload-success" : "upload-success") + '" style="' +
-      (success ? "" : "background:rgba(224,92,92,0.08);border-color:rgba(224,92,92,0.25);color:var(--red)") +
-      '">' + (success ? "✓ " : "✕ ") + msg + '</div>';
-  }
-}
-
-// Drag and drop support
-document.addEventListener("DOMContentLoaded", function() {
-  document.addEventListener("dragover", function(e) {
-    e.preventDefault();
-    const zone = document.getElementById("upload-zone");
-    if (zone) zone.classList.add("dragover");
-  });
-  document.addEventListener("dragleave", function(e) {
-    const zone = document.getElementById("upload-zone");
-    if (zone) zone.classList.remove("dragover");
-  });
-  document.addEventListener("drop", function(e) {
-    e.preventDefault();
-    const zone = document.getElementById("upload-zone");
-    if (zone) zone.classList.remove("dragover");
-    const file = e.dataTransfer?.files?.[0];
-    if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.name.endsWith(".csv"))) {
-      handleFileUpload(file);
-    }
-  });
-});
-
 function updatePlayerName(pi, val) { state.players[pi].name = val; }
 function updatePick(pi, gi, val) { state.players[pi].picks[gi] = val; }
 function addPlayer() { state.players.push({ name: "Player " + (state.players.length + 1), picks: Array(9).fill("") }); render(); }
 function removePlayer(pi) { state.players.splice(pi, 1); render(); }
 
 function startPool() {
-  const nameInput = document.getElementById("tourney-name");
-  const tourneyName = nameInput ? nameInput.value : state.tournamentName;
-  state.tournamentName = tourneyName || "Golf Pool";
+  state.tournamentName = document.getElementById("tourney-name").value || "Golf Pool";
   state.potAmount = Number(document.getElementById("pot-amount").value) || 480;
   state.screen = "app";
   saveState();
-  // Auto-save to tournament library
-  saveTournamentConfig(state.tournamentName, {
-    tournamentName: state.tournamentName,
-    potAmount: state.potAmount,
-    players: state.players
-  });
   render();
   refreshScores();
 }
@@ -1235,19 +634,10 @@ function refreshScores() {
 }
 
 function resetPool() {
-  if (confirm("Reset pool? This will return to setup.\nYour current tournament config will be saved to the tournament library.")) {
-    // Save current config before resetting
-    if (state.tournamentName && state.players.length > 0) {
-      saveTournamentConfig(state.tournamentName, {
-        tournamentName: state.tournamentName,
-        potAmount: state.potAmount,
-        players: state.players
-      });
-    }
+  if (confirm("Reset pool? This will clear all data and return to setup.")) {
     localStorage.removeItem(STORAGE_KEY);
-    state = { screen: "setup", tournamentName: "", potAmount: 480, players: [], leaderboard: [], currentRound: 0, standings: [], probs: {}, tab: "standings", lastUpdated: null, expandedRows: {}, simming: false, field: [], fieldLoaded: false, activeAC: null, schedule: [], scheduleLoaded: false, selectedEventId: null };
+    state = { screen: "setup", tournamentName: "", potAmount: 480, players: [], leaderboard: [], currentRound: 0, standings: [], probs: {}, tab: "standings", lastUpdated: null, expandedRows: {}, simming: false };
     render();
-    fetchSchedule();
   }
 }
 
@@ -1259,10 +649,6 @@ setInterval(() => {
 // ─── INIT ────────────────────────────────────────────────────────────────────
 loadState();
 render();
-// Auto-fetch schedule when on setup screen
-if (state.screen === "setup") {
-  fetchSchedule();
-}
 </script>
 </body>
 </html>
