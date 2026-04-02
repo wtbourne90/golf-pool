@@ -283,6 +283,23 @@ function runMonteCarlo() {
   const lb = state.leaderboard;
   if (lb.length === 0) return;
 
+  // If no rounds have been played yet, the simulation would be deterministic
+  // (ESPN returns the prior completed event with all rounds filled in, causing
+  // every sim to produce the same outcome → 100% for one player). Instead,
+  // assign equal odds across all players until the tournament actually starts.
+  const tournamentStarted = lb.some(g => g.rounds.some(r => r !== null));
+  if (!tournamentStarted) {
+    const equalPct = state.players.length > 0 ? 100 / state.players.length : 0;
+    const probs = {};
+    state.players.forEach(p => {
+      probs[p.name] = { champion: equalPct, best4: equalPct, best8thru2: equalPct, cutsMade: equalPct, matchPlay: equalPct };
+    });
+    state.probs = probs;
+    state.preTournament = true;
+    return;
+  }
+  state.preTournament = false;
+
   const NUM_SIMS = 2000;
   const MEAN = 0.8, STD = 3.2;
   const randRound = () => {
@@ -517,6 +534,9 @@ function renderOdds() {
   if (!probs || Object.keys(probs).length === 0) return '<div style="padding:40px;text-align:center;color:#444">Refresh scores to generate odds</div>';
 
   let html = '';
+  if (state.preTournament) {
+    html += '<div style="margin:8px 16px;padding:10px 14px;border-radius:6px;background:rgba(184,150,62,0.08);border:1px solid rgba(184,150,62,0.2);font-size:11px;color:var(--gold);text-align:center">⏳ Tournament has not yet started — showing equal odds until scores are available</div>';
+  }
   SCORING_CATEGORIES.forEach(cat => {
     const catPot = state.potAmount * cat.weight;
     const sorted = [...state.players].sort((a, b) => (probs[b.name]?.[cat.key] || 0) - (probs[a.name]?.[cat.key] || 0));
