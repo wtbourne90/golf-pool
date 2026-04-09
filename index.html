@@ -77,6 +77,7 @@
 <body>
 <div class="container" id="app"></div>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 // ─── STATE ───────────────────────────────────────────────────────────────────
 
@@ -283,23 +284,6 @@ function runMonteCarlo() {
   const lb = state.leaderboard;
   if (lb.length === 0) return;
 
-  // If no rounds have been played yet, the simulation would be deterministic
-  // (ESPN returns the prior completed event with all rounds filled in, causing
-  // every sim to produce the same outcome → 100% for one player). Instead,
-  // assign equal odds across all players until the tournament actually starts.
-  const tournamentStarted = lb.some(g => g.rounds.some(r => r !== null));
-  if (!tournamentStarted) {
-    const equalPct = state.players.length > 0 ? 100 / state.players.length : 0;
-    const probs = {};
-    state.players.forEach(p => {
-      probs[p.name] = { champion: equalPct, best4: equalPct, best8thru2: equalPct, cutsMade: equalPct, matchPlay: equalPct };
-    });
-    state.probs = probs;
-    state.preTournament = true;
-    return;
-  }
-  state.preTournament = false;
-
   const NUM_SIMS = 2000;
   const MEAN = 0.8, STD = 3.2;
   const randRound = () => {
@@ -413,6 +397,8 @@ function renderSetup(app) {
 
   // Players
   html += '<div class="setup-section"><h2>Players & Picks</h2>';
+  html += '<div style="margin-bottom:12px"><label class="btn-secondary" style="display:inline-block;cursor:pointer">📂 Upload Draft Excel<input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)"></label>';
+  html += '<span style="font-size:10px;color:var(--dim);margin-left:10px">Reads player names (col C) & picks (col E)</span></div>';
   state.players.forEach((p, pi) => {
     html += '<div class="player-setup">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
@@ -534,9 +520,6 @@ function renderOdds() {
   if (!probs || Object.keys(probs).length === 0) return '<div style="padding:40px;text-align:center;color:#444">Refresh scores to generate odds</div>';
 
   let html = '';
-  if (state.preTournament) {
-    html += '<div style="margin:8px 16px;padding:10px 14px;border-radius:6px;background:rgba(184,150,62,0.08);border:1px solid rgba(184,150,62,0.2);font-size:11px;color:var(--gold);text-align:center">⏳ Tournament has not yet started — showing equal odds until scores are available</div>';
-  }
   SCORING_CATEGORIES.forEach(cat => {
     const catPot = state.potAmount * cat.weight;
     const sorted = [...state.players].sort((a, b) => (probs[b.name]?.[cat.key] || 0) - (probs[a.name]?.[cat.key] || 0));
@@ -628,6 +611,53 @@ function renderRules() {
   });
   html += '</div>';
   return html;
+}
+
+// ─── EXCEL UPLOAD ────────────────────────────────────────────────────────────
+
+function handleExcelUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+
+      // Parse snake draft: column C = player name, column E = golfer pick
+      const playerPicks = {};
+      const playerOrder = [];
+      for (let r = 1; r <= 100; r++) {
+        const nameCell = ws["C" + r];
+        const pickCell = ws["E" + r];
+        const name = nameCell ? String(nameCell.v || "").trim() : "";
+        const pick = pickCell ? String(pickCell.v || "").trim() : "";
+        if (name && pick) {
+          if (!playerPicks[name]) { playerPicks[name] = []; playerOrder.push(name); }
+          playerPicks[name].push(pick);
+        }
+      }
+
+      const players = playerOrder.map(name => {
+        const picks = playerPicks[name];
+        // Pad to 9 slots
+        while (picks.length < 9) picks.push("");
+        return { name, picks: picks.slice(0, 9) };
+      });
+
+      if (players.length === 0) {
+        alert("No player data found. Expected player names in column C and picks in column E.");
+        return;
+      }
+
+      state.players = players;
+      render();
+    } catch (err) {
+      alert("Error reading Excel file: " + err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ─── EVENT HANDLERS ──────────────────────────────────────────────────────────
