@@ -186,7 +186,7 @@ async function fetchLeaderboard() {
       const linescores = c.linescores || [];
       const rounds = [null, null, null, null];
       linescores.forEach((ls, i) => {
-        if (i < 4 && ls.value !== undefined) {
+        if (i < 4 && ls && ls.value !== undefined && ls.value !== null && ls.value > 0) {
           rounds[i] = ls.value - coursePar;
         }
       });
@@ -291,14 +291,35 @@ function runMonteCarlo() {
     return Math.round(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * STD + MEAN);
   };
 
-  const wins = {};
-  state.players.forEach(p => { wins[p.name] = { champion: 0, best4: 0, best8thru2: 0, cutsMade: 0, matchPlay: 0 }; });
+  // Track top-3 finishes for each player in each category
+  const places = {};
+  state.players.forEach(p => {
+    places[p.name] = {
+      champion: [0,0,0], best4: [0,0,0], best8thru2: [0,0,0], cutsMade: [0,0,0], matchPlay: [0,0,0]
+    };
+  });
+
+  // Helper: assign top-3 places from sorted array (handles ties)
+  function awardPlaces(sorted, key, getValue) {
+    if (sorted.length === 0) return;
+    let rank = 0;
+    let prev = null;
+    for (let i = 0; i < sorted.length && rank < 3; i++) {
+      const val = getValue(sorted[i]);
+      if (prev === null || val !== prev) { rank = i; prev = val; }
+      if (rank < 3) places[sorted[i].name][key][rank]++;
+    }
+  }
 
   for (let sim = 0; sim < NUM_SIMS; sim++) {
     const simGolfers = {};
     lb.forEach(g => {
       const rounds = [...g.rounds];
-      if (!g.cutMade) { simGolfers[g.name] = { ...g, rounds, simTotal: g.total ?? 999 }; return; }
+      const statusLower = (g.status || "").toLowerCase();
+      if (!g.cutMade || statusLower === "wd" || statusLower === "dq") {
+        simGolfers[g.name] = { ...g, rounds, simTotal: g.total ?? 999 };
+        return;
+      }
       for (let r = 0; r < 4; r++) { if (rounds[r] === null) rounds[r] = randRound(); }
       simGolfers[g.name] = { ...g, rounds, simTotal: rounds.reduce((a, b) => a + (b ?? 0), 0) };
     });
@@ -315,22 +336,30 @@ function runMonteCarlo() {
       });
       const valid = gData.filter(g => g.cutMade);
       const sorted = [...valid].sort((a, b) => a.simTotal - b.simTotal);
-      const b4 = sorted.slice(0, 4).reduce((s, g) => s + g.simTotal, 0);
+      const b4 = sorted.slice(0, 4).reduce((s, g) => s + g.simTotal, 0) || 999;
       const t2 = gData.map(g => ({ s: (g.rounds[0] ?? 999) + (g.rounds[1] ?? 999) })).filter(x => x.s < 500).sort((a, b) => a.s - b.s);
-      const b8t2 = t2.slice(0, 8).reduce((s, x) => s + x.s, 0);
+      const b8t2 = t2.slice(0, 8).reduce((s, x) => s + x.s, 0) || 999;
       const cuts = gData.filter(g => g.cutMade).length;
       const hasChamp = gData.some(g => g.name === champName);
       return { name: player.name, b4, b8t2, cuts, hasChamp, gData };
     });
 
-    simStandings.forEach(p => { if (p.hasChamp) wins[p.name].champion++; });
-    const b4s = [...simStandings].sort((a, b) => a.b4 - b.b4);
-    if (b4s.length) wins[b4s[0].name].best4++;
-    const b8s = [...simStandings].sort((a, b) => a.b8t2 - b.b8t2);
-    if (b8s.length) wins[b8s[0].name].best8thru2++;
-    const cs = [...simStandings].sort((a, b) => b.cuts - a.cuts);
-    if (cs.length) wins[cs[0].name].cutsMade++;
+    // Champion
+    simStandings.forEach(p => { if (p.hasChamp) places[p.name].champion[0]++; });
 
+    // Best 4 Score (lower is better)
+    const b4s = [...simStandings].sort((a, b) => a.b4 - b.b4);
+    awardPlaces(b4s, "best4", p => p.b4);
+
+    // Best 8 Thru 2 (lower is better)
+    const b8s = [...simStandings].sort((a, b) => a.b8t2 - b.b8t2);
+    awardPlaces(b8s, "best8thru2", p => p.b8t2);
+
+    // Most Cuts Made (higher is better)
+    const cs = [...simStandings].sort((a, b) => b.cuts - a.cuts);
+    awardPlaces(cs, "cutsMade", p => -p.cuts);
+
+    // Match Play
     const mpW = {};
     simStandings.forEach(p => { mpW[p.name] = 0; });
     for (let i = 0; i < simStandings.length; i++) {
@@ -345,19 +374,25 @@ function runMonteCarlo() {
         if (aW > bW) mpW[a.name]++; else if (bW > aW) mpW[b.name]++;
       }
     }
-    const mps = Object.entries(mpW).sort((a, b) => b[1] - a[1]);
-    if (mps.length) wins[mps[0][0]].matchPlay++;
+    const mps = simStandings.map(p => ({ name: p.name, w: mpW[p.name] })).sort((a, b) => b.w - a.w);
+    awardPlaces(mps, "matchPlay", p => -p.w);
   }
 
+  // Convert to probabilities and compute EV using prize structure
   const probs = {};
   state.players.forEach(p => {
-    probs[p.name] = {
-      champion: wins[p.name].champion / NUM_SIMS * 100,
-      best4: wins[p.name].best4 / NUM_SIMS * 100,
-      best8thru2: wins[p.name].best8thru2 / NUM_SIMS * 100,
-      cutsMade: wins[p.name].cutsMade / NUM_SIMS * 100,
-      matchPlay: wins[p.name].matchPlay / NUM_SIMS * 100,
-    };
+    probs[p.name] = {};
+    SCORING_CATEGORIES.forEach(cat => {
+      const pl = places[p.name][cat.key];
+      const pcts = pl.map(c => c / NUM_SIMS * 100);
+      // EV = sum of P(place) * prize_fraction * category_pot
+      const catPot = state.potAmount * cat.weight;
+      let ev = 0;
+      for (let i = 0; i < cat.prizes.length && i < pcts.length; i++) {
+        ev += (pcts[i] / 100) * cat.prizes[i] * catPot;
+      }
+      probs[p.name][cat.key] = { win: pcts[0], second: pcts[1] || 0, third: pcts[2] || 0, ev };
+    });
   });
   state.probs = probs;
 }
@@ -522,7 +557,8 @@ function renderOdds() {
   let html = '';
   SCORING_CATEGORIES.forEach(cat => {
     const catPot = state.potAmount * cat.weight;
-    const sorted = [...state.players].sort((a, b) => (probs[b.name]?.[cat.key] || 0) - (probs[a.name]?.[cat.key] || 0));
+    const hasPodium = cat.prizes.length > 1;
+    const sorted = [...state.players].sort((a, b) => (probs[b.name]?.[cat.key]?.ev || 0) - (probs[a.name]?.[cat.key]?.ev || 0));
 
     html += '<div class="cat-card">';
     html += '<div class="cat-header"><div style="display:flex;justify-content:space-between;align-items:center">';
@@ -531,18 +567,32 @@ function renderOdds() {
     html += '<div style="font-size:14px;font-weight:700;color:var(--gold)">$' + Math.round(catPot) + '</div>';
     html += '</div></div>';
 
-    html += '<div style="padding:4px 14px;display:grid;grid-template-columns:30px 1fr 60px 70px;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase"><div>#</div><div>Player</div><div style="text-align:right">Win %</div><div style="text-align:right">EV</div></div>';
+    if (hasPodium) {
+      html += '<div style="padding:4px 14px;display:grid;grid-template-columns:30px 1fr 46px 46px 46px 60px;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase"><div>#</div><div>Player</div><div style="text-align:right">1st</div><div style="text-align:right">2nd</div><div style="text-align:right">3rd</div><div style="text-align:right">EV</div></div>';
+    } else {
+      html += '<div style="padding:4px 14px;display:grid;grid-template-columns:30px 1fr 60px 70px;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase"><div>#</div><div>Player</div><div style="text-align:right">Win %</div><div style="text-align:right">EV</div></div>';
+    }
 
     sorted.forEach((p, i) => {
-      const pct = probs[p.name]?.[cat.key] || 0;
-      const ev = (pct / 100) * catPot;
+      const d = probs[p.name]?.[cat.key] || { win: 0, second: 0, third: 0, ev: 0 };
       const color = getPlayerColor(state.players.indexOf(p));
-      html += '<div style="display:grid;grid-template-columns:30px 1fr 60px 70px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,0.03);align-items:center;font-size:12px">';
-      html += '<div style="color:var(--dim)">' + (i + 1) + '</div>';
-      html += '<div style="display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:' + color + '"></div><span style="color:#ddd">' + p.name + '</span></div>';
-      html += '<div style="text-align:right;color:' + pctColor(pct) + ';font-weight:700">' + pct.toFixed(1) + '%</div>';
-      html += '<div style="text-align:right;color:var(--gold);font-weight:600">$' + ev.toFixed(0) + '</div>';
-      html += '</div>';
+      if (hasPodium) {
+        html += '<div style="display:grid;grid-template-columns:30px 1fr 46px 46px 46px 60px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,0.03);align-items:center;font-size:12px">';
+        html += '<div style="color:var(--dim)">' + (i + 1) + '</div>';
+        html += '<div style="display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:' + color + '"></div><span style="color:#ddd">' + p.name + '</span></div>';
+        html += '<div style="text-align:right;color:' + pctColor(d.win) + ';font-weight:700">' + d.win.toFixed(0) + '%</div>';
+        html += '<div style="text-align:right;color:' + pctColor(d.second) + '">' + d.second.toFixed(0) + '%</div>';
+        html += '<div style="text-align:right;color:' + pctColor(d.third) + '">' + d.third.toFixed(0) + '%</div>';
+        html += '<div style="text-align:right;color:var(--gold);font-weight:600">$' + d.ev.toFixed(0) + '</div>';
+        html += '</div>';
+      } else {
+        html += '<div style="display:grid;grid-template-columns:30px 1fr 60px 70px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,0.03);align-items:center;font-size:12px">';
+        html += '<div style="color:var(--dim)">' + (i + 1) + '</div>';
+        html += '<div style="display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:' + color + '"></div><span style="color:#ddd">' + p.name + '</span></div>';
+        html += '<div style="text-align:right;color:' + pctColor(d.win) + ';font-weight:700">' + d.win.toFixed(1) + '%</div>';
+        html += '<div style="text-align:right;color:var(--gold);font-weight:600">$' + d.ev.toFixed(0) + '</div>';
+        html += '</div>';
+      }
     });
     html += '</div>';
   });
@@ -551,7 +601,7 @@ function renderOdds() {
   html += '<div class="cat-card"><div class="cat-header"><div style="font-size:13px;font-weight:700;color:var(--gold)">Total Expected Value</div></div>';
   const evs = state.players.map((p, idx) => {
     let totalEv = 0;
-    SCORING_CATEGORIES.forEach(cat => { totalEv += (probs[p.name]?.[cat.key] || 0) / 100 * state.potAmount * cat.weight; });
+    SCORING_CATEGORIES.forEach(cat => { totalEv += probs[p.name]?.[cat.key]?.ev || 0; });
     return { name: p.name, ev: totalEv, color: getPlayerColor(idx) };
   }).sort((a, b) => b.ev - a.ev);
   const maxEv = evs[0]?.ev || 1;
