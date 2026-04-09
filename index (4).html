@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golf Fantasy Pool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #091a0d; --card: rgba(255,255,255,0.03); --border: rgba(255,255,255,0.06);
+    --gold: #b8963e; --green: #4ade80; --red: #e05c5c; --text: #f0ead6; --dim: #555;
+    --font: Georgia, 'Times New Roman', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding-bottom: 40px; }
+
+  /* Setup Screen */
+  .setup { padding: 24px 16px; }
+  .setup h1 { text-align: center; font-size: 24px; color: #fff; margin-bottom: 6px; }
+  .setup .sub { text-align: center; color: var(--gold); font-size: 10px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 24px; }
+  .setup-section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .setup-section h2 { font-size: 13px; color: var(--gold); letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; }
+  .setup-input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 10px 12px; color: #fff; font-size: 14px; font-family: var(--font); margin-bottom: 8px; }
+  .setup-input:focus { outline: none; border-color: var(--gold); }
+  .setup-input::placeholder { color: #444; }
+  .player-setup { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+  .player-setup .name { font-weight: 700; color: #fff; font-size: 13px; margin-bottom: 8px; }
+  .picks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .pick-input { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px 8px; color: #fff; font-size: 11px; font-family: var(--font); width: 100%; }
+  .pick-input:focus { outline: none; border-color: var(--gold); }
+  .btn { background: var(--gold); color: #0a1a0e; border: none; padding: 12px 24px; border-radius: 6px; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 1px; }
+  .btn:hover { filter: brightness(1.1); }
+  .btn-secondary { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 8px 16px; border-radius: 4px; font-family: var(--font); font-size: 11px; font-weight: 700; cursor: pointer; }
+  .btn-small { background: rgba(184,150,62,0.15); border: 1px solid rgba(184,150,62,0.3); color: var(--gold); padding: 6px 14px; border-radius: 4px; font-family: var(--font); font-size: 11px; font-weight: 700; cursor: pointer; }
+  .add-player-btn { background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px; text-align: center; color: var(--dim); cursor: pointer; font-family: var(--font); font-size: 12px; }
+  .add-player-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .remove-btn { background: none; border: none; color: #e05c5c; cursor: pointer; font-size: 14px; float: right; }
+
+  /* App Header */
+  .header { background: linear-gradient(180deg, #0a1f0e, #123018); border-bottom: 2px solid var(--gold); padding: 22px 16px 16px; text-align: center; }
+  .header h1 { font-size: 24px; color: #fff; letter-spacing: 1px; }
+  .header .sub { color: var(--gold); font-size: 10px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 6px; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.3); }
+  .tab { flex: 1; padding: 10px; background: none; border: none; color: var(--dim); font-family: var(--font); font-size: 12px; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* Refresh bar */
+  .rbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+
+  /* Player rows */
+  .player-row { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .player-row:hover { background: rgba(184,150,62,0.04); }
+  .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; letter-spacing: 0.5px; margin: 1px 2px; }
+  .golfer-card { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 9px 11px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06); }
+
+  /* Odds */
+  .cat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin: 8px 16px; overflow: hidden; }
+  .cat-header { padding: 10px 14px; background: rgba(184,150,62,0.06); border-bottom: 1px solid var(--border); }
+  .ev-bar { height: 6px; border-radius: 3px; background: var(--gold); transition: width 0.4s; }
+
+  /* Leaderboard */
+  .lb-row { display: grid; grid-template-columns: 40px 1fr 64px 50px; padding: 9px 15px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
+
+  /* Rules */
+  .rule-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin: 8px 16px; padding: 16px; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #0d1f12; border: 1px solid var(--gold); border-radius: 12px; padding: 24px; max-width: 700px; width: 95%; max-height: 85vh; overflow-y: auto; }
+
+  .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--dim); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "golf_pool_state";
+const SCORING_CATEGORIES = [
+  { key: "champion", label: "Champion", weight: 0.20, description: "Pool player whose golfer wins the tournament", prizes: [1.0] },
+  { key: "best4", label: "Best 4 Score", weight: 0.30, description: "Lowest combined score of best 4 golfers (all 4 rounds)", prizes: [0.6, 0.3, 0.1] },
+  { key: "best8thru2", label: "Best 8 Thru 2", weight: 0.20, description: "Lowest combined score of best 8 golfers through rounds 1 & 2", prizes: [0.6, 0.3, 0.1] },
+  { key: "cutsMade", label: "Most Cuts Made", weight: 0.20, description: "Most golfers making the cut", prizes: [0.6, 0.3, 0.1] },
+  { key: "matchPlay", label: "Match Play", weight: 0.10, description: "Head-to-head round wins vs each pool player", prizes: [0.6, 0.3, 0.1] },
+];
+
+const PLAYER_COLORS = ["#1a6b3c","#8b5e0a","#1e3a6e","#5a1a5a","#7a1a1a","#1a4a5a","#3a5a1a","#4a3a1a","#5a3a5a","#1a5a3a"];
+
+let state = {
+  screen: "setup",
+  tournamentName: "",
+  potAmount: 480,
+  players: [],
+  leaderboard: [],
+  currentRound: 0,
+  standings: [],
+  probs: {},
+  tab: "standings",
+  lastUpdated: null,
+  expandedRows: {},
+  simming: false,
+};
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.players && parsed.players.length > 0) {
+        Object.assign(state, parsed);
+        state.screen = "app";
+        state.expandedRows = {};
+        state.simming = false;
+      }
+    }
+  } catch (e) {}
+}
+
+function saveState() {
+  try {
+    const toSave = { tournamentName: state.tournamentName, potAmount: state.potAmount, players: state.players };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch (e) {}
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function formatScore(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  if (n === 0) return "E";
+  return n > 0 ? "+" + n : "" + n;
+}
+
+function scoreColor(n) {
+  if (n == null || isNaN(n)) return "#aaa";
+  if (n < 0) return "#4ade80";
+  if (n === 0) return "#f0ead6";
+  return "#e05c5c";
+}
+
+function pctColor(p) {
+  if (p >= 35) return "#4ade80";
+  if (p >= 18) return "#f0c040";
+  if (p >= 7) return "#e09050";
+  return "#607d6e";
+}
+
+function nameMatch(a, b) {
+  const fa = a.toLowerCase().trim(), fb = b.toLowerCase().trim();
+  if (fa === fb) return true;
+  const al = fa.split(" ").pop(), bl = fb.split(" ").pop();
+  if (al.length > 3 && al === bl) return true;
+  return fa.split(" ").some(p => p.length > 3 && fb.includes(p));
+}
+
+function getPlayerColor(idx) { return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
+
+// ─── ESPN API ────────────────────────────────────────────────────────────────
+
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch("https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard");
+    const data = await res.json();
+    const events = data?.events || [];
+    const event = events[0];
+    if (!event) throw new Error("No event found");
+
+    const competitions = event.competitions || [];
+    const comp = competitions[0];
+    if (!comp) throw new Error("No competition data");
+
+    const competitors = comp.competitors || [];
+    const coursePar = 72;
+
+    const golfers = competitors.map(c => {
+      const athlete = c.athlete || {};
+      const name = athlete.displayName || "Unknown";
+      const status = c.status?.type?.name || "";
+      const position = c.status?.position?.displayName || c.sortOrder || "—";
+      const linescores = c.linescores || [];
+      const rounds = [null, null, null, null];
+      linescores.forEach((ls, i) => {
+        if (i < 4 && ls.value !== undefined) {
+          rounds[i] = ls.value - coursePar;
+        }
+      });
+      const completedRounds = rounds.filter(r => r !== null);
+      const total = completedRounds.length > 0 ? completedRounds.reduce((a, b) => a + b, 0) : null;
+      const cutMade = status !== "cut";
+      const thru = c.status?.thru !== undefined ? (c.status.thru === 0 ? "—" : c.status.thru === 18 ? "F" : c.status.thru) : "—";
+
+      return { name, rounds, total, cutMade, position, thru, status };
+    });
+
+    golfers.sort((a, b) => {
+      if (a.cutMade !== b.cutMade) return a.cutMade ? -1 : 1;
+      return (a.total ?? 999) - (b.total ?? 999);
+    });
+    golfers.forEach((g, i) => { if (!g.position || g.position === "—") g.position = i + 1; });
+
+    const cr = Math.max(0, ...golfers.flatMap(g => g.rounds.map((r, i) => r !== null ? i : -1)));
+
+    state.leaderboard = golfers;
+    state.currentRound = cr;
+    state.tournamentName = event.name || state.tournamentName;
+    state.lastUpdated = new Date();
+    computeAll();
+    render();
+  } catch (err) {
+    console.error("Fetch error:", err);
+  }
+}
+
+// ─── SCORING ─────────────────────────────────────────────────────────────────
+
+function computeAll() {
+  const lb = state.leaderboard;
+  if (lb.length === 0) return;
+
+  const gm = {};
+  lb.forEach(g => { gm[g.name] = g; });
+
+  const standings = state.players.map((player, idx) => {
+    const gd = player.picks.map(n => {
+      const found = lb.find(g => nameMatch(n, g.name));
+      return found || { name: n, rounds: [null, null, null, null], total: null, cutMade: false, thru: "—" };
+    });
+    const valid = gd.filter(g => g.total !== null).sort((a, b) => a.total - b.total);
+    const b4 = valid.slice(0, 4);
+    const b4s = b4.length > 0 ? b4.reduce((s, g) => s + g.total, 0) : 999;
+    const t2 = gd.map(g => ({ name: g.name, s: (g.rounds[0] ?? 999) + (g.rounds[1] ?? 999) })).filter(x => x.s < 500).sort((a, b) => a.s - b.s);
+    const b8 = t2.slice(0, 8);
+    const b8s = b8.length > 0 ? b8.reduce((s, x) => s + x.s, 0) : 999;
+    const cuts = gd.filter(g => g.cutMade && g.total !== null).length;
+    const champ = lb.length > 0 && gd.some(g => g.name === lb[0]?.name);
+    return { name: player.name, color: getPlayerColor(idx), golferData: gd, best4Score: b4s, best8Thru2Score: b8s, cutsMade: cuts, champion: champ, matchPlayWins: 0, matchPlayRecord: [] };
+  });
+
+  // Match play
+  for (let i = 0; i < standings.length; i++) {
+    for (let j = i + 1; j < standings.length; j++) {
+      const a = standings[i], b = standings[j];
+      let aW = 0, bW = 0;
+      for (let r = 0; r < 4; r++) {
+        const aS = a.golferData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+        const bS = b.golferData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+        if (aS < bS) aW++; else if (bS < aS) bW++;
+      }
+      if (aW > bW) { a.matchPlayWins++; a.matchPlayRecord.push("W vs " + b.name); b.matchPlayRecord.push("L vs " + a.name); }
+      else if (bW > aW) { b.matchPlayWins++; b.matchPlayRecord.push("W vs " + a.name); a.matchPlayRecord.push("L vs " + b.name); }
+      else { a.matchPlayRecord.push("T vs " + b.name); b.matchPlayRecord.push("T vs " + a.name); }
+    }
+  }
+
+  // Rankings
+  const rankBy = (arr, key, asc) => {
+    const sorted = [...arr].sort((a, b) => asc ? a[key] - b[key] : b[key] - a[key]);
+    sorted.forEach((item, i) => { item[key + "Rank"] = i + 1; });
+  };
+  rankBy(standings, "best4Score", true);
+  rankBy(standings, "best8Thru2Score", true);
+  rankBy(standings, "cutsMade", false);
+  rankBy(standings, "matchPlayWins", false);
+
+  standings.forEach(p => {
+    p.compositeScore = (p.champion ? 0 : standings.length) * 0.20 + p.best4ScoreRank * 0.30 + p.best8Thru2ScoreRank * 0.20 + p.cutsMadeRank * 0.20 + p.matchPlayWinsRank * 0.10;
+  });
+  standings.sort((a, b) => a.compositeScore - b.compositeScore);
+  standings.forEach((p, i) => { p.overallRank = i + 1; });
+
+  state.standings = standings;
+  runMonteCarlo();
+}
+
+// ─── MONTE CARLO ─────────────────────────────────────────────────────────────
+
+function runMonteCarlo() {
+  const lb = state.leaderboard;
+  if (lb.length === 0) return;
+
+  const NUM_SIMS = 2000;
+  const MEAN = 0.8, STD = 3.2;
+  const randRound = () => {
+    const u1 = Math.random(), u2 = Math.random();
+    return Math.round(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * STD + MEAN);
+  };
+
+  const wins = {};
+  state.players.forEach(p => { wins[p.name] = { champion: 0, best4: 0, best8thru2: 0, cutsMade: 0, matchPlay: 0 }; });
+
+  for (let sim = 0; sim < NUM_SIMS; sim++) {
+    const simGolfers = {};
+    lb.forEach(g => {
+      const rounds = [...g.rounds];
+      if (!g.cutMade) { simGolfers[g.name] = { ...g, rounds, simTotal: g.total ?? 999 }; return; }
+      for (let r = 0; r < 4; r++) { if (rounds[r] === null) rounds[r] = randRound(); }
+      simGolfers[g.name] = { ...g, rounds, simTotal: rounds.reduce((a, b) => a + (b ?? 0), 0) };
+    });
+
+    let champName = null, champScore = Infinity;
+    Object.values(simGolfers).forEach(g => {
+      if (g.cutMade && g.simTotal < champScore) { champScore = g.simTotal; champName = g.name; }
+    });
+
+    const simStandings = state.players.map(player => {
+      const gData = player.picks.map(n => {
+        const found = Object.values(simGolfers).find(g => nameMatch(n, g.name));
+        return found || { name: n, rounds: [null, null, null, null], simTotal: 999, cutMade: false };
+      });
+      const valid = gData.filter(g => g.cutMade);
+      const sorted = [...valid].sort((a, b) => a.simTotal - b.simTotal);
+      const b4 = sorted.slice(0, 4).reduce((s, g) => s + g.simTotal, 0);
+      const t2 = gData.map(g => ({ s: (g.rounds[0] ?? 999) + (g.rounds[1] ?? 999) })).filter(x => x.s < 500).sort((a, b) => a.s - b.s);
+      const b8t2 = t2.slice(0, 8).reduce((s, x) => s + x.s, 0);
+      const cuts = gData.filter(g => g.cutMade).length;
+      const hasChamp = gData.some(g => g.name === champName);
+      return { name: player.name, b4, b8t2, cuts, hasChamp, gData };
+    });
+
+    simStandings.forEach(p => { if (p.hasChamp) wins[p.name].champion++; });
+    const b4s = [...simStandings].sort((a, b) => a.b4 - b.b4);
+    if (b4s.length) wins[b4s[0].name].best4++;
+    const b8s = [...simStandings].sort((a, b) => a.b8t2 - b.b8t2);
+    if (b8s.length) wins[b8s[0].name].best8thru2++;
+    const cs = [...simStandings].sort((a, b) => b.cuts - a.cuts);
+    if (cs.length) wins[cs[0].name].cutsMade++;
+
+    const mpW = {};
+    simStandings.forEach(p => { mpW[p.name] = 0; });
+    for (let i = 0; i < simStandings.length; i++) {
+      for (let j = i + 1; j < simStandings.length; j++) {
+        const a = simStandings[i], b = simStandings[j];
+        let aW = 0, bW = 0;
+        for (let r = 0; r < 4; r++) {
+          const aS = a.gData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+          const bS = b.gData.reduce((s, g) => s + (g.rounds[r] ?? 99), 0);
+          if (aS < bS) aW++; else if (bS < aS) bW++;
+        }
+        if (aW > bW) mpW[a.name]++; else if (bW > aW) mpW[b.name]++;
+      }
+    }
+    const mps = Object.entries(mpW).sort((a, b) => b[1] - a[1]);
+    if (mps.length) wins[mps[0][0]].matchPlay++;
+  }
+
+  const probs = {};
+  state.players.forEach(p => {
+    probs[p.name] = {
+      champion: wins[p.name].champion / NUM_SIMS * 100,
+      best4: wins[p.name].best4 / NUM_SIMS * 100,
+      best8thru2: wins[p.name].best8thru2 / NUM_SIMS * 100,
+      cutsMade: wins[p.name].cutsMade / NUM_SIMS * 100,
+      matchPlay: wins[p.name].matchPlay / NUM_SIMS * 100,
+    };
+  });
+  state.probs = probs;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+
+function render() {
+  const app = document.getElementById("app");
+  if (state.screen === "setup") {
+    renderSetup(app);
+  } else {
+    renderApp(app);
+  }
+}
+
+function renderSetup(app) {
+  if (!state.players.length) {
+    state.players = Array.from({ length: 8 }, (_, i) => ({
+      name: ["Judy", "Tucker", "Jay", "Tim", "Bill", "David", "Graham", "Chuck"][i] || "Player " + (i + 1),
+      picks: Array(9).fill("")
+    }));
+  }
+
+  let html = '<div class="setup">';
+  html += '<h1>⛳ Golf Fantasy Pool</h1>';
+  html += '<div class="sub">Configure Your Tournament</div>';
+
+  // Tournament name
+  html += '<div class="setup-section"><h2>Tournament</h2>';
+  html += '<input class="setup-input" id="tourney-name" placeholder="e.g. The Masters 2026" value="' + (state.tournamentName || "") + '">';
+  html += '</div>';
+
+  // Pot
+  html += '<div class="setup-section"><h2>Pot Amount</h2>';
+  html += '<input class="setup-input" type="number" id="pot-amount" placeholder="480" value="' + state.potAmount + '">';
+  html += '</div>';
+
+  // Players
+  html += '<div class="setup-section"><h2>Players & Picks</h2>';
+  html += '<div style="margin-bottom:12px"><label class="btn-secondary" style="display:inline-block;cursor:pointer">📂 Upload Draft Excel<input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)"></label>';
+  html += '<span style="font-size:10px;color:var(--dim);margin-left:10px">Reads player names (col C) & picks (col E)</span></div>';
+  state.players.forEach((p, pi) => {
+    html += '<div class="player-setup">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    html += '<input class="setup-input" style="width:150px;margin:0;font-weight:700" value="' + p.name + '" onchange="updatePlayerName(' + pi + ', this.value)">';
+    if (state.players.length > 2) html += '<button class="remove-btn" onclick="removePlayer(' + pi + ')">✕</button>';
+    html += '</div>';
+    html += '<div class="picks-grid">';
+    p.picks.forEach((g, gi) => {
+      html += '<input class="pick-input" placeholder="Golfer ' + (gi + 1) + '" value="' + g + '" onchange="updatePick(' + pi + ',' + gi + ', this.value)">';
+    });
+    html += '</div></div>';
+  });
+
+  if (state.players.length < 10) {
+    html += '<div class="add-player-btn" onclick="addPlayer()">+ Add Player</div>';
+  }
+  html += '</div>';
+
+  // Start button
+  html += '<div style="text-align:center;margin-top:20px">';
+  html += '<button class="btn" onclick="startPool()">START POOL</button>';
+  html += '</div>';
+
+  html += '</div>';
+  app.innerHTML = html;
+}
+
+function renderApp(app) {
+  const tabs = [
+    { k: "standings", l: "Standings" },
+    { k: "odds", l: "Odds" },
+    { k: "leaderboard", l: "Tournament" },
+    { k: "rules", l: "Rules" },
+  ];
+
+  let html = '';
+
+  // Header
+  html += '<div class="header">';
+  html += '<div class="sub"><span style="display:inline-flex;align-items:center;gap:10px"><span style="height:1px;width:30px;background:var(--gold);display:inline-block"></span>' + (state.tournamentName || "Golf Pool") + '<span style="height:1px;width:30px;background:var(--gold);display:inline-block"></span></span></div>';
+  html += '<h1>⛳ Fantasy Pool</h1>';
+  html += '<div style="margin-top:10px;color:var(--gold);font-size:13px;font-weight:700">💰 Pot: $' + state.potAmount + '</div>';
+  html += '</div>';
+
+  // Tabs
+  html += '<div class="tabs">';
+  tabs.forEach(t => {
+    html += '<button class="tab ' + (state.tab === t.k ? "active" : "") + '" onclick="switchTab(\'' + t.k + '\')">' + t.l + '</button>';
+  });
+  html += '</div>';
+
+  // Refresh bar
+  html += '<div class="rbar">';
+  html += '<div><div style="font-size:11px;color:var(--dim)">' + (state.lastUpdated ? "Updated " + new Date(state.lastUpdated).toLocaleTimeString() : "Not yet refreshed") + '</div>';
+  html += '<div style="font-size:11px;color:var(--gold);font-weight:600">' + (state.currentRound >= 3 ? "Final" : "Round " + (state.currentRound + 1)) + '</div></div>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button class="btn-small" onclick="refreshScores()">↻ Refresh</button>';
+  html += '<button class="btn-small" onclick="resetPool()">⟲ Reset</button>';
+  html += '</div></div>';
+
+  // Tab content
+  if (state.tab === "standings") html += renderStandings();
+  else if (state.tab === "odds") html += renderOdds();
+  else if (state.tab === "leaderboard") html += renderLeaderboard();
+  else if (state.tab === "rules") html += renderRules();
+
+  app.innerHTML = html;
+}
+
+function renderStandings() {
+  let html = '';
+  state.standings.forEach((p, idx) => {
+    const expanded = state.expandedRows[p.name];
+    const badges = [
+      { label: "CHAMP", active: p.champion },
+      { label: "B4: " + formatScore(p.best4Score), active: p.best4ScoreRank === 1 },
+      { label: "8×2: " + formatScore(p.best8Thru2Score), active: p.best8Thru2ScoreRank === 1 },
+      { label: "CUTS: " + p.cutsMade, active: p.cutsMadeRank === 1 },
+      { label: "MP: " + p.matchPlayWins, active: p.matchPlayWinsRank === 1 },
+    ];
+
+    html += '<div class="player-row" onclick="toggleRow(\'' + p.name + '\')">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    html += '<div style="width:28px;height:28px;border-radius:50%;background:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">' + p.overallRank + '</div>';
+    html += '<div><div style="font-size:15px;font-weight:700;color:#fff">' + p.name + '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">';
+    badges.forEach(b => {
+      html += '<span class="badge" style="background:' + (b.active ? p.color : "rgba(255,255,255,0.05)") + ';color:' + (b.active ? "#fff" : "#444") + ';border:1px solid ' + (b.active ? p.color : "#222") + '">' + b.label + '</span>';
+    });
+    html += '</div></div></div>';
+    html += '<div style="font-size:11px;color:#444">' + (expanded ? "▲" : "▼") + '</div>';
+    html += '</div>';
+
+    if (expanded) {
+      html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:6px">';
+      p.golferData.forEach(g => {
+        const sc = formatScore(g.total);
+        const col = scoreColor(g.total);
+        html += '<div class="golfer-card"><div>';
+        html += '<div style="font-size:12px;color:#ddd">' + g.name + '</div>';
+        html += '<div style="font-size:10px;color:#555;margin-top:1px">' + (g.cutMade ? "Pos " + g.position + " · " + g.thru : (g.status === "cut" || g.thru === "CUT" ? "Missed Cut" : "—")) + '</div>';
+        html += '</div><div style="font-size:18px;font-weight:700;color:' + col + '">' + sc + '</div></div>';
+      });
+      html += '</div>';
+      if (p.matchPlayRecord.length) {
+        html += '<div style="margin-top:8px;font-size:10px;color:#555">Match Play: ' + p.matchPlayRecord.join(" · ") + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  return html;
+}
+
+function renderOdds() {
+  const probs = state.probs;
+  if (!probs || Object.keys(probs).length === 0) return '<div style="padding:40px;text-align:center;color:#444">Refresh scores to generate odds</div>';
+
+  let html = '';
+  SCORING_CATEGORIES.forEach(cat => {
+    const catPot = state.potAmount * cat.weight;
+    const sorted = [...state.players].sort((a, b) => (probs[b.name]?.[cat.key] || 0) - (probs[a.name]?.[cat.key] || 0));
+
+    html += '<div class="cat-card">';
+    html += '<div class="cat-header"><div style="display:flex;justify-content:space-between;align-items:center">';
+    html += '<div><div style="font-size:13px;font-weight:700;color:var(--gold)">' + cat.label + '</div>';
+    html += '<div style="font-size:10px;color:var(--dim);margin-top:2px">' + cat.description + '</div></div>';
+    html += '<div style="font-size:14px;font-weight:700;color:var(--gold)">$' + Math.round(catPot) + '</div>';
+    html += '</div></div>';
+
+    html += '<div style="padding:4px 14px;display:grid;grid-template-columns:30px 1fr 60px 70px;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase"><div>#</div><div>Player</div><div style="text-align:right">Win %</div><div style="text-align:right">EV</div></div>';
+
+    sorted.forEach((p, i) => {
+      const pct = probs[p.name]?.[cat.key] || 0;
+      const ev = (pct / 100) * catPot;
+      const color = getPlayerColor(state.players.indexOf(p));
+      html += '<div style="display:grid;grid-template-columns:30px 1fr 60px 70px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,0.03);align-items:center;font-size:12px">';
+      html += '<div style="color:var(--dim)">' + (i + 1) + '</div>';
+      html += '<div style="display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:' + color + '"></div><span style="color:#ddd">' + p.name + '</span></div>';
+      html += '<div style="text-align:right;color:' + pctColor(pct) + ';font-weight:700">' + pct.toFixed(1) + '%</div>';
+      html += '<div style="text-align:right;color:var(--gold);font-weight:600">$' + ev.toFixed(0) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  // Total EV
+  html += '<div class="cat-card"><div class="cat-header"><div style="font-size:13px;font-weight:700;color:var(--gold)">Total Expected Value</div></div>';
+  const evs = state.players.map((p, idx) => {
+    let totalEv = 0;
+    SCORING_CATEGORIES.forEach(cat => { totalEv += (probs[p.name]?.[cat.key] || 0) / 100 * state.potAmount * cat.weight; });
+    return { name: p.name, ev: totalEv, color: getPlayerColor(idx) };
+  }).sort((a, b) => b.ev - a.ev);
+  const maxEv = evs[0]?.ev || 1;
+  evs.forEach((p, i) => {
+    html += '<div style="display:grid;grid-template-columns:30px 1fr 80px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.03);align-items:center">';
+    html += '<div style="font-size:12px;color:var(--dim)">' + (i + 1) + '</div>';
+    html += '<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:8px;height:8px;border-radius:50%;background:' + p.color + '"></div><span style="font-size:12px;color:#ddd">' + p.name + '</span></div>';
+    html += '<div class="ev-bar" style="width:' + (p.ev / maxEv * 100) + '%"></div></div>';
+    html += '<div style="text-align:right;font-size:14px;font-weight:700;color:var(--gold)">$' + p.ev.toFixed(0) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  return html;
+}
+
+function renderLeaderboard() {
+  const lb = state.leaderboard;
+  if (!lb.length) return '<div style="padding:48px;text-align:center;color:#444">No live data yet — hit Refresh to pull scores</div>';
+
+  let html = '<div style="background:var(--card);border-radius:8px;overflow:hidden;border:1px solid var(--border);margin:8px 16px">';
+  html += '<div class="lb-row" style="background:rgba(184,150,62,0.1);font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase"><div>Pos</div><div>Player</div><div style="text-align:right">Score</div><div style="text-align:right">Thru</div></div>';
+
+  lb.slice(0, 50).forEach(g => {
+    const ownerIdx = state.players.findIndex(p => p.picks.some(pk => nameMatch(pk, g.name)));
+    const owner = ownerIdx >= 0 ? state.players[ownerIdx] : null;
+    const col = owner ? getPlayerColor(ownerIdx) : null;
+    html += '<div class="lb-row" style="background:' + (owner ? "rgba(184,150,62,0.05)" : "transparent") + '">';
+    html += '<div style="color:#555">' + g.position + '</div>';
+    html += '<div><span style="color:' + (owner ? "#fff" : "#aaa") + '">' + g.name + '</span>';
+    if (owner) html += '<span style="font-size:9px;color:' + col + ';margin-left:6px">(' + owner.name + ')</span>';
+    html += '</div>';
+    html += '<div style="text-align:right;color:' + scoreColor(g.total) + ';font-weight:700">' + formatScore(g.total) + '</div>';
+    html += '<div style="text-align:right;color:#555">' + g.thru + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderRules() {
+  let html = '<div style="padding:8px 0">';
+  html += '<div class="rule-card" style="text-align:center;margin-bottom:12px"><div style="color:var(--gold);font-size:10px;letter-spacing:2px;text-transform:uppercase">Total Pot</div><div style="color:#fff;font-size:28px;font-weight:700;margin-top:4px">$' + state.potAmount + '</div></div>';
+
+  SCORING_CATEGORIES.forEach(cat => {
+    const prize = Math.round(state.potAmount * cat.weight);
+    html += '<div class="rule-card">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    html += '<div style="font-size:14px;font-weight:700;color:var(--gold)">' + cat.label + '</div>';
+    html += '<div style="font-size:14px;font-weight:700;color:#fff">$' + prize + '</div></div>';
+    html += '<div style="font-size:11px;color:#888;margin-bottom:6px">' + cat.description + '</div>';
+    html += '<div style="font-size:10px;color:var(--dim)">Weight: ' + (cat.weight * 100) + '% of pot</div>';
+    if (cat.prizes.length > 1) {
+      html += '<div style="font-size:10px;color:var(--dim);margin-top:2px">Podium: 1st $' + Math.round(prize * cat.prizes[0]) + ' · 2nd $' + Math.round(prize * cat.prizes[1]) + ' · 3rd $' + Math.round(prize * cat.prizes[2]) + '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ─── EXCEL UPLOAD ────────────────────────────────────────────────────────────
+
+function handleExcelUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+
+      // Parse snake draft: column C = player name, column E = golfer pick
+      const playerPicks = {};
+      const playerOrder = [];
+      for (let r = 1; r <= 100; r++) {
+        const nameCell = ws["C" + r];
+        const pickCell = ws["E" + r];
+        const name = nameCell ? String(nameCell.v || "").trim() : "";
+        const pick = pickCell ? String(pickCell.v || "").trim() : "";
+        if (name && pick) {
+          if (!playerPicks[name]) { playerPicks[name] = []; playerOrder.push(name); }
+          playerPicks[name].push(pick);
+        }
+      }
+
+      const players = playerOrder.map(name => {
+        const picks = playerPicks[name];
+        // Pad to 9 slots
+        while (picks.length < 9) picks.push("");
+        return { name, picks: picks.slice(0, 9) };
+      });
+
+      if (players.length === 0) {
+        alert("No player data found. Expected player names in column C and picks in column E.");
+        return;
+      }
+
+      state.players = players;
+      render();
+    } catch (err) {
+      alert("Error reading Excel file: " + err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── EVENT HANDLERS ──────────────────────────────────────────────────────────
+
+function updatePlayerName(pi, val) { state.players[pi].name = val; }
+function updatePick(pi, gi, val) { state.players[pi].picks[gi] = val; }
+function addPlayer() { state.players.push({ name: "Player " + (state.players.length + 1), picks: Array(9).fill("") }); render(); }
+function removePlayer(pi) { state.players.splice(pi, 1); render(); }
+
+function startPool() {
+  state.tournamentName = document.getElementById("tourney-name").value || "Golf Pool";
+  state.potAmount = Number(document.getElementById("pot-amount").value) || 480;
+  state.screen = "app";
+  saveState();
+  render();
+  refreshScores();
+}
+
+function switchTab(t) { state.tab = t; render(); }
+function toggleRow(name) { state.expandedRows[name] = !state.expandedRows[name]; render(); }
+
+function refreshScores() {
+  fetchLeaderboard();
+}
+
+function resetPool() {
+  if (confirm("Reset pool? This will clear all data and return to setup.")) {
+    localStorage.removeItem(STORAGE_KEY);
+    state = { screen: "setup", tournamentName: "", potAmount: 480, players: [], leaderboard: [], currentRound: 0, standings: [], probs: {}, tab: "standings", lastUpdated: null, expandedRows: {}, simming: false };
+    render();
+  }
+}
+
+// Auto-refresh every 2 minutes when in app mode
+setInterval(() => {
+  if (state.screen === "app") refreshScores();
+}, 120000);
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+loadState();
+render();
+</script>
+</body>
+</html>
